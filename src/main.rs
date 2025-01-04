@@ -1,6 +1,7 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+use std::collections::HashMap;
 
 macro_rules! unsplash_api {
     ($end_point:expr) => {
@@ -32,19 +33,36 @@ struct Photo {
     links: HashMap<String, String>,
 }
 
-async fn find_topic<T: AsRef<str>>(client: &reqwest::Client, id_or_slug: T) -> Topic {
-    client
+#[derive(Debug, Error)]
+enum Error {
+    #[error("HTTP error {0}")]
+    StatusError(reqwest::StatusCode),
+}
+
+type Result<T> = std::result::Result<T, Error>;
+
+fn handle_response(response: reqwest::Response) -> Result<reqwest::Response> {
+    if !response.status().is_success() {
+        return Err(Error::StatusError(response.status()));
+    }
+
+    Ok(response)
+}
+
+async fn find_topic<T: AsRef<str>>(client: &reqwest::Client, id_or_slug: T) -> Result<Topic> {
+    let response = client
         .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()))
         .send()
         .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap()
+        .unwrap();
+
+    let response = handle_response(response)?;
+
+    Ok(response.json().await.unwrap())
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
     let api_key = std::env::var("UNSPLASH_API_KEY").unwrap();
@@ -61,7 +79,7 @@ async fn main() {
         .build()
         .unwrap();
 
-    let topic = find_topic(&client, "nature").await;
+    let topic = find_topic(&client, "nature").await?;
     println!("{:?}", topic);
 
     let response = client
@@ -74,11 +92,11 @@ async fn main() {
         .await
         .unwrap();
 
-    if !response.status().is_success() {
-        return;
-    }
+    let response = handle_response(response)?;
 
     let photos: Vec<Photo> = response.json().await.unwrap();
 
     println!("{:?}", photos);
+
+    Ok(())
 }
