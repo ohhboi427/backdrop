@@ -2,6 +2,16 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+macro_rules! unsplash_api {
+    ($end_point:expr) => {
+        concat!("https://api.unsplash.com", $end_point)
+    };
+
+    ($end_point:expr, $($arg:expr),+) => {
+        format!(unsplash_api!($end_point), $($arg),+)
+    };
+}
+
 macro_rules! query_params {
     ($($key:expr => $value:expr),+ $(,)?) => {
         &[
@@ -23,9 +33,14 @@ struct Photo {
 }
 
 async fn find_topic<T: AsRef<str>>(client: &reqwest::Client, id_or_slug: T) -> Topic {
-    let url = format!("https://api.unsplash.com/topics/{}", id_or_slug.as_ref());
-
-    client.get(url).send().await.unwrap().json().await.unwrap()
+    client
+        .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap()
 }
 
 #[tokio::main]
@@ -47,9 +62,10 @@ async fn main() {
         .unwrap();
 
     let topic = find_topic(&client, "nature").await;
+    println!("{:?}", topic);
 
     let response = client
-        .get("https://api.unsplash.com/photos/random")
+        .get(unsplash_api!("/photos/random"))
         .query(query_params!(
             "count" => 10,
             "topics" => topic.id
