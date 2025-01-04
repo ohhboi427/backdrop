@@ -1,3 +1,7 @@
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client, Response,
+};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -35,13 +39,16 @@ struct Photo {
 
 #[derive(Debug, Error)]
 enum Error {
+    #[error("Missing or invalid Unsplash access key")]
+    InvalidApiKey,
+
     #[error("HTTP error {0}")]
     StatusError(reqwest::StatusCode),
 }
 
 type Result<T> = std::result::Result<T, Error>;
 
-fn handle_response(response: reqwest::Response) -> Result<reqwest::Response> {
+fn handle_response(response: Response) -> Result<Response> {
     if !response.status().is_success() {
         return Err(Error::StatusError(response.status()));
     }
@@ -49,7 +56,7 @@ fn handle_response(response: reqwest::Response) -> Result<reqwest::Response> {
     Ok(response)
 }
 
-async fn find_topic<T: AsRef<str>>(client: &reqwest::Client, id_or_slug: T) -> Result<Topic> {
+async fn find_topic<T: AsRef<str>>(client: &Client, id_or_slug: T) -> Result<Topic> {
     let response = client
         .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()))
         .send()
@@ -61,7 +68,7 @@ async fn find_topic<T: AsRef<str>>(client: &reqwest::Client, id_or_slug: T) -> R
     Ok(response.json().await.unwrap())
 }
 
-async fn fetch_photos(client: &reqwest::Client, topic: &Topic) -> Result<Vec<Photo>> {
+async fn fetch_photos(client: &Client, topic: &Topic) -> Result<Vec<Photo>> {
     let response = client
         .get(unsplash_api!("/photos/random"))
         .query(query_params!(
@@ -81,19 +88,16 @@ async fn fetch_photos(client: &reqwest::Client, topic: &Topic) -> Result<Vec<Pho
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
-    let api_key = std::env::var("UNSPLASH_API_KEY").unwrap();
+    let api_key = std::env::var("UNSPLASH_API_KEY").map_err(|_| Error::InvalidApiKey)?;
 
     let auth = format!("Client-ID {}", api_key);
-    let mut auth = reqwest::header::HeaderValue::from_str(&auth).unwrap();
+    let mut auth = HeaderValue::from_str(&auth).map_err(|_| Error::InvalidApiKey)?;
     auth.set_sensitive(true);
 
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(reqwest::header::AUTHORIZATION, auth);
+    let mut headers = HeaderMap::new();
+    headers.insert("Authorization", auth);
 
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build()
-        .unwrap();
+    let client = Client::builder().default_headers(headers).build().unwrap();
 
     let topic = find_topic(&client, "nature").await?;
     println!("{:?}", topic);
