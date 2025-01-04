@@ -61,6 +61,22 @@ async fn find_topic<T: AsRef<str>>(client: &reqwest::Client, id_or_slug: T) -> R
     Ok(response.json().await.unwrap())
 }
 
+async fn fetch_photos(client: &reqwest::Client, topic: &Topic) -> Result<Vec<Photo>> {
+    let response = client
+        .get(unsplash_api!("/photos/random"))
+        .query(query_params!(
+            "count" => 10,
+            "topics" => topic.id
+        ))
+        .send()
+        .await
+        .unwrap();
+
+    let response = handle_response(response)?;
+
+    Ok(response.json().await.unwrap())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
@@ -82,20 +98,7 @@ async fn main() -> Result<()> {
     let topic = find_topic(&client, "nature").await?;
     println!("{:?}", topic);
 
-    let response = client
-        .get(unsplash_api!("/photos/random"))
-        .query(query_params!(
-            "count" => 10,
-            "topics" => topic.id
-        ))
-        .send()
-        .await
-        .unwrap();
-
-    let response = handle_response(response)?;
-
-    let photos: Vec<Photo> = response.json().await.unwrap();
-
+    let photos = fetch_photos(&client, &topic).await?;
     println!("{:?}", photos);
 
     Ok(())
