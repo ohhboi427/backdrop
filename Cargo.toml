@@ -2,3 +2,8 @@
 name = "backdrop"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+dotenvy = "0.15.7"
+reqwest = { version = "0.12.12", features = ["json"] }
+tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"] }
