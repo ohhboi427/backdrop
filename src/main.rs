@@ -11,10 +11,21 @@ macro_rules! query_params {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct Topic {
+    id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct Photo {
     id: String,
     urls: HashMap<String, String>,
     links: HashMap<String, String>,
+}
+
+async fn find_topic<T: AsRef<str>>(client: &reqwest::Client, id_or_slug: T) -> Topic {
+    let url = format!("https://api.unsplash.com/topics/{}", id_or_slug.as_ref());
+
+    client.get(url).send().await.unwrap().json().await.unwrap()
 }
 
 #[tokio::main]
@@ -35,10 +46,13 @@ async fn main() {
         .build()
         .unwrap();
 
+    let topic = find_topic(&client, "nature").await;
+
     let response = client
         .get("https://api.unsplash.com/photos/random")
         .query(query_params!(
-            "count" => 1,
+            "count" => 10,
+            "topics" => topic.id
         ))
         .send()
         .await
