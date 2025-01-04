@@ -1,3 +1,14 @@
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Photo {
+    id: String,
+    urls: HashMap<String, String>,
+    links: HashMap<String, String>,
+}
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
@@ -18,9 +29,16 @@ async fn main() {
 
     let response = client
         .get("https://api.unsplash.com/photos/random")
+        .query(&[("count", 1)])
         .send()
         .await
         .unwrap();
 
-    println!("{:?}", response);
+    if !response.status().is_success() {
+        return;
+    }
+
+    let photos: Vec<Photo> = response.json().await.unwrap();
+
+    println!("{:?}", photos);
 }
