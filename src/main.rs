@@ -2,6 +2,14 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+macro_rules! query_params {
+    ($($key:expr => $value:expr),+ $(,)?) => {
+        &[
+            $(($key, $value.to_string())),*
+        ]
+    };
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Photo {
     id: String,
@@ -29,7 +37,9 @@ async fn main() {
 
     let response = client
         .get("https://api.unsplash.com/photos/random")
-        .query(&[("count", 1)])
+        .query(query_params!(
+            "count" => 1,
+        ))
         .send()
         .await
         .unwrap();
