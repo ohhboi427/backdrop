@@ -1,12 +1,13 @@
-use dotenvy::dotenv;
+use bytes::Bytes;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client, Response, StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::task::JoinSet;
 
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, fs::File, io::Write};
 
 macro_rules! unsplash_api {
     ($end_point:expr) => {
@@ -26,12 +27,12 @@ macro_rules! query_params {
     };
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Topic {
     id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Photo {
     id: String,
     urls: HashMap<String, String>,
@@ -91,9 +92,43 @@ async fn fetch_photos(client: &Client, topic: &Topic) -> Result<Vec<Photo>> {
     Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
 }
 
+async fn download_photos(client: &Client, photos: &[Photo]) -> Vec<Result<Bytes>> {
+    let mut tasks = JoinSet::<Result<Bytes>>::new();
+
+    for photo in photos.iter().cloned() {
+        let client = client.clone();
+
+        tasks.spawn(async move {
+            client
+                .get(&photo.links["download_location"])
+                .send()
+                .await
+                .map_err(|_| Error::Request)?;
+
+            let response = client
+                .get(&photo.urls["raw"])
+                .query(query_params!(
+                    "fm" => "png",
+                    "w" => 1920,
+                    "h" => 1080,
+                    "fit" => "min",
+                ))
+                .send()
+                .await
+                .map_err(|_| Error::Request)?;
+
+            let response = handle_response(response)?;
+
+            Ok(response.bytes().await.map_err(|_| Error::InvalidResponse)?)
+        });
+    }
+
+    tasks.join_all().await
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenv().unwrap();
+    dotenvy::dotenv().unwrap();
 
     let api_key = env::var("UNSPLASH_API_KEY").map_err(|_| Error::InvalidApiKey)?;
 
@@ -111,6 +146,14 @@ async fn main() -> Result<()> {
 
     let photos = fetch_photos(&client, &topic).await?;
     println!("{:?}", photos);
+
+    let images = download_photos(&client, &photos).await;
+    for (index, image) in images.iter().enumerate() {
+        if let Ok(bytes) = image {
+            let mut file = File::create(format!("photo{}.png", index)).unwrap();
+            file.write_all(bytes.as_ref()).unwrap()
+        }
+    }
 
     Ok(())
 }
