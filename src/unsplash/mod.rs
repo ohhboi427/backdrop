@@ -44,6 +44,12 @@ pub struct Photo {
     links: HashMap<String, String>,
 }
 
+impl Photo {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+}
+
 pub struct Client {
     http: HttpClient,
 }
@@ -95,7 +101,7 @@ impl Client {
         Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
     }
 
-    pub async fn download_photos(&self, photos: &[Photo]) -> Vec<Result<Bytes>> {
+    pub async fn download_photos(&self, photos: Vec<Photo>) -> Vec<(Photo, Result<Bytes>)> {
         let mut tasks = JoinSet::<Result<Bytes>>::new();
 
         for photo in photos.iter().cloned() {
@@ -126,7 +132,7 @@ impl Client {
             });
         }
 
-        tasks.join_all().await
+        photos.into_iter().zip(tasks.join_all().await.into_iter()).collect()
     }
 
     fn handle_response(response: Response) -> Result<Response> {

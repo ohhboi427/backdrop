@@ -12,15 +12,13 @@ async fn main() -> Result<()> {
     let client = Client::new(&api_key)?;
 
     let topic = client.find_topic("nature").await?;
-    println!("{:?}", topic);
 
     let photos = client.fetch_photos(&topic).await?;
-    println!("{:?}", photos);
 
-    let images = client.download_photos(&photos).await;
-    for (index, image) in images.into_iter().enumerate() {
-        let mut file = File::create(format!("photo{}.png", index)).unwrap();
-        file.write_all(image?.as_ref()).unwrap()
+    let images = client.download_photos(photos).await;
+    for (photo, data) in images {
+        let mut file = File::create(format!("{}.png", photo.id())).unwrap();
+        file.write_all(data?.as_ref()).unwrap()
     }
 
     Ok(())
