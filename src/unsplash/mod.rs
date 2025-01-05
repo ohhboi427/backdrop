@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bytes::Bytes;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
-    Client as HttpClient, Response,
+    Client as HttpClient, RequestBuilder, Response,
 };
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinSet;
@@ -11,7 +11,6 @@ use tokio::task::JoinSet;
 pub mod error;
 pub mod result;
 
-use crate::unsplash::Quality::Custom;
 pub use error::Error;
 pub use result::Result;
 
@@ -79,31 +78,25 @@ impl Client {
     }
 
     pub async fn find_topic<T: AsRef<str>>(&self, id_or_slug: T) -> Result<Topic> {
-        let response = self
+        let request = self
             .http
-            .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()))
-            .send()
-            .await
-            .map_err(|_| Error::Request)?;
+            .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()));
 
-        let response = Self::handle_response(response)?;
+        let response = Self::send_request(request).await?;
 
         Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
     }
 
     pub async fn fetch_photos(&self, topic: &Topic, count: u32) -> Result<Vec<Photo>> {
-        let response = self
+        let request = self
             .http
             .get(unsplash_api!("/photos/random"))
             .query(query_params!(
                 "count" => count,
                 "topics" => topic.id
-            ))
-            .send()
-            .await
-            .map_err(|_| Error::Request)?;
+            ));
 
-        let response = Self::handle_response(response)?;
+        let response = Self::send_request(request).await?;
 
         Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
     }
@@ -130,7 +123,7 @@ impl Client {
                     "fm" => "png",
                 ));
 
-                if let Custom(w, h) = quality {
+                if let Quality::Custom(w, h) = quality {
                     request = request.query(query_params!(
                         "w" => w,
                         "h" => h,
@@ -138,9 +131,7 @@ impl Client {
                     ));
                 }
 
-                let response = request.send().await.map_err(|_| Error::Request)?;
-
-                let response = Self::handle_response(response)?;
+                let response = Self::send_request(request).await?;
 
                 Ok(response.bytes().await.map_err(|_| Error::InvalidResponse)?)
             });
@@ -152,7 +143,9 @@ impl Client {
             .collect()
     }
 
-    fn handle_response(response: Response) -> Result<Response> {
+    async fn send_request(request: RequestBuilder) -> Result<Response> {
+        let response = request.send().await.map_err(|_| Error::Request)?;
+
         if !response.status().is_success() {
             return Err(Error::Status(response.status()));
         }
