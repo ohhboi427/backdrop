@@ -11,6 +11,7 @@ use tokio::task::JoinSet;
 pub mod error;
 pub mod result;
 
+use crate::unsplash::Quality::Custom;
 pub use error::Error;
 pub use result::Result;
 
@@ -30,6 +31,12 @@ macro_rules! query_params {
             $(($key, $value.to_string())),+
         ]
     };
+}
+
+#[derive(Debug, Clone)]
+pub enum Quality {
+    Raw,
+    Custom(u32, u32),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,12 +91,12 @@ impl Client {
         Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
     }
 
-    pub async fn fetch_photos(&self, topic: &Topic) -> Result<Vec<Photo>> {
+    pub async fn fetch_photos(&self, topic: &Topic, count: u32) -> Result<Vec<Photo>> {
         let response = self
             .http
             .get(unsplash_api!("/photos/random"))
             .query(query_params!(
-                "count" => 10,
+                "count" => count,
                 "topics" => topic.id
             ))
             .send()
@@ -101,11 +108,16 @@ impl Client {
         Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
     }
 
-    pub async fn download_photos(&self, photos: Vec<Photo>) -> Vec<(Photo, Result<Bytes>)> {
+    pub async fn download_photos(
+        &self,
+        photos: Vec<Photo>,
+        quality: Quality,
+    ) -> Vec<(Photo, Result<Bytes>)> {
         let mut tasks = JoinSet::<Result<Bytes>>::new();
 
         for photo in photos.iter().cloned() {
             let client = self.http.clone();
+            let quality = quality.clone();
 
             tasks.spawn(async move {
                 client
@@ -114,17 +126,19 @@ impl Client {
                     .await
                     .map_err(|_| Error::Request)?;
 
-                let response = client
-                    .get(&photo.urls["raw"])
-                    .query(query_params!(
-                        "fm" => "png",
-                        "w" => 1920,
-                        "h" => 1080,
+                let mut request = client.get(&photo.urls["raw"]).query(query_params!(
+                    "fm" => "png",
+                ));
+
+                if let Custom(w, h) = quality {
+                    request = request.query(query_params!(
+                        "w" => w,
+                        "h" => h,
                         "fit" => "min",
-                    ))
-                    .send()
-                    .await
-                    .map_err(|_| Error::Request)?;
+                    ));
+                }
+
+                let response = request.send().await.map_err(|_| Error::Request)?;
 
                 let response = Self::handle_response(response)?;
 
@@ -132,7 +146,10 @@ impl Client {
             });
         }
 
-        photos.into_iter().zip(tasks.join_all().await.into_iter()).collect()
+        photos
+            .into_iter()
+            .zip(tasks.join_all().await.into_iter())
+            .collect()
     }
 
     fn handle_response(response: Response) -> Result<Response> {

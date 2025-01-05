@@ -2,7 +2,7 @@ pub mod unsplash;
 
 use std::{env, fs::File, io::Write};
 
-use unsplash::{Client, Result};
+use unsplash::{Client, Result, Quality};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -13,9 +13,9 @@ async fn main() -> Result<()> {
 
     let topic = client.find_topic("nature").await?;
 
-    let photos = client.fetch_photos(&topic).await?;
+    let photos = client.fetch_photos(&topic, 1).await?;
 
-    let images = client.download_photos(photos).await;
+    let images = client.download_photos(photos, Quality::Custom(1920, 1080)).await;
     for (photo, data) in images {
         let mut file = File::create(format!("{}.png", photo.id())).unwrap();
         file.write_all(data?.as_ref()).unwrap()
