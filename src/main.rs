@@ -1,11 +1,12 @@
+use dotenvy::dotenv;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
-    Client, Response,
+    Client, Response, StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 
 macro_rules! unsplash_api {
     ($end_point:expr) => {
@@ -20,7 +21,7 @@ macro_rules! unsplash_api {
 macro_rules! query_params {
     ($($key:expr => $value:expr),+ $(,)?) => {
         &[
-            $(($key, $value.to_string())),*
+            $(($key, $value.to_string())),+
         ]
     };
 }
@@ -39,18 +40,24 @@ struct Photo {
 
 #[derive(Debug, Error)]
 enum Error {
-    #[error("Missing or invalid Unsplash access key")]
+    #[error("Missing or invalid access key")]
     InvalidApiKey,
 
+    #[error("Failed to parse response")]
+    InvalidResponse,
+
+    #[error("Failed to send request")]
+    Request,
+
     #[error("HTTP error {0}")]
-    StatusError(reqwest::StatusCode),
+    Status(StatusCode),
 }
 
 type Result<T> = std::result::Result<T, Error>;
 
 fn handle_response(response: Response) -> Result<Response> {
     if !response.status().is_success() {
-        return Err(Error::StatusError(response.status()));
+        return Err(Error::Status(response.status()));
     }
 
     Ok(response)
@@ -61,11 +68,11 @@ async fn find_topic<T: AsRef<str>>(client: &Client, id_or_slug: T) -> Result<Top
         .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()))
         .send()
         .await
-        .unwrap();
+        .map_err(|_| Error::Request)?;
 
     let response = handle_response(response)?;
 
-    Ok(response.json().await.unwrap())
+    Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
 }
 
 async fn fetch_photos(client: &Client, topic: &Topic) -> Result<Vec<Photo>> {
@@ -77,18 +84,18 @@ async fn fetch_photos(client: &Client, topic: &Topic) -> Result<Vec<Photo>> {
         ))
         .send()
         .await
-        .unwrap();
+        .map_err(|_| Error::Request)?;
 
     let response = handle_response(response)?;
 
-    Ok(response.json().await.unwrap())
+    Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenvy::dotenv().ok();
+    dotenv().unwrap();
 
-    let api_key = std::env::var("UNSPLASH_API_KEY").map_err(|_| Error::InvalidApiKey)?;
+    let api_key = env::var("UNSPLASH_API_KEY").map_err(|_| Error::InvalidApiKey)?;
 
     let auth = format!("Client-ID {}", api_key);
     let mut auth = HeaderValue::from_str(&auth).map_err(|_| Error::InvalidApiKey)?;
