@@ -106,41 +106,43 @@ impl Client {
         photos: Vec<Photo>,
         quality: Quality,
     ) -> Vec<(Photo, Result<Bytes>)> {
-        let mut tasks = JoinSet::<Result<Bytes>>::new();
+        let mut tasks = JoinSet::new();
 
-        for photo in photos.iter().cloned() {
+        for photo in photos.into_iter() {
             let client = self.http.clone();
             let quality = quality.clone();
 
             tasks.spawn(async move {
-                client
-                    .get(&photo.links["download_location"])
-                    .send()
-                    .await
-                    .map_err(|_| Error::Request)?;
+                let bytes = async {
+                    client
+                        .get(&photo.links["download_location"])
+                        .send()
+                        .await
+                        .map_err(|_| Error::Request)?;
 
-                let mut request = client.get(&photo.urls["raw"]).query(query_params!(
-                    "fm" => "png",
-                ));
-
-                if let Quality::Custom(w, h) = quality {
-                    request = request.query(query_params!(
-                        "w" => w,
-                        "h" => h,
-                        "fit" => "min",
+                    let mut request = client.get(&photo.urls["raw"]).query(query_params!(
+                        "fm" => "png",
                     ));
+
+                    if let Quality::Custom(w, h) = quality {
+                        request = request.query(query_params!(
+                            "w" => w,
+                            "h" => h,
+                            "fit" => "min",
+                        ));
+                    }
+
+                    let response = Self::send_request(request).await?;
+
+                    Ok(response.bytes().await.map_err(|_| Error::InvalidResponse)?)
                 }
+                .await;
 
-                let response = Self::send_request(request).await?;
-
-                Ok(response.bytes().await.map_err(|_| Error::InvalidResponse)?)
+                (photo, bytes)
             });
         }
 
-        photos
-            .into_iter()
-            .zip(tasks.join_all().await.into_iter())
-            .collect()
+        tasks.join_all().await
     }
 
     async fn send_request(request: RequestBuilder) -> Result<Response> {
