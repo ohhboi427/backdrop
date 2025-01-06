@@ -1,16 +1,16 @@
-use std::collections::HashMap;
-
 use bytes::Bytes;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as HttpClient, RequestBuilder, Response,
 };
-use serde::{Deserialize, Serialize};
 
-pub mod error;
-pub mod result;
+mod models;
+pub use models::{Photo, Topic};
 
+mod error;
 pub use error::Error;
+
+mod result;
 pub use result::Result;
 
 macro_rules! unsplash_api {
@@ -37,24 +37,6 @@ pub enum Quality {
     Custom(u32, u32),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Topic {
-    id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Photo {
-    id: String,
-    urls: HashMap<String, String>,
-    links: HashMap<String, String>,
-}
-
-impl Photo {
-    pub fn id(&self) -> &str {
-        &self.id
-    }
-}
-
 #[derive(Clone)]
 pub struct Client {
     http: HttpClient,
@@ -78,9 +60,7 @@ impl Client {
     }
 
     pub async fn find_topic(&self, id_or_slug: &str) -> Result<Topic> {
-        let request = self
-            .http
-            .get(unsplash_api!("/topics/{}", id_or_slug));
+        let request = self.http.get(unsplash_api!("/topics/{}", id_or_slug));
 
         let response = Self::send_request(request).await?;
         let topic = response.json().await.map_err(|_| Error::InvalidResponse)?;
@@ -94,7 +74,7 @@ impl Client {
             .get(unsplash_api!("/photos/random"))
             .query(query_params!(
                 "count" => count,
-                "topics" => topic.id
+                "topics" => topic.id()
             ));
 
         let response = Self::send_request(request).await?;
@@ -104,11 +84,11 @@ impl Client {
     }
 
     pub async fn download_photo(&self, photo: &Photo, quality: Quality) -> Result<Bytes> {
-        let track_request = self.http.get(&photo.links["download_location"]);
+        let track_request = self.http.get(photo.download_track_url());
 
         Self::send_request(track_request).await?;
 
-        let mut download_request = self.http.get(&photo.urls["raw"]).query(query_params!(
+        let mut download_request = self.http.get(photo.file_url()).query(query_params!(
             "fm" => "png",
         ));
 
