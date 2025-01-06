@@ -2,7 +2,9 @@ pub mod unsplash;
 
 use std::{env, fs::File, io::Write};
 
-use unsplash::{Client, Result, Quality};
+use tokio::task::JoinSet;
+
+use unsplash::{Client, Quality, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -12,16 +14,27 @@ async fn main() -> Result<()> {
     let client = Client::new(&api_key)?;
 
     let topic = client.find_topic("nature").await?;
-
     let photos = client.fetch_photos(&topic, 10).await?;
 
     std::fs::create_dir("photos").unwrap();
 
-    let images = client.download_photos(photos, Quality::Custom(1920, 1080)).await;
-    for (photo, data) in images {
-        let mut file = File::create(format!("photos/{}.png", photo.id())).unwrap();
-        file.write_all(data?.as_ref()).unwrap()
+    let mut tasks = JoinSet::<Result<()>>::new();
+    for photo in photos {
+        let client = client.clone();
+
+        tasks.spawn(async move {
+            let data = client
+                .download_photo(&photo, Quality::Custom(1920, 1080))
+                .await?;
+
+            let mut file = File::create(format!("photos/{}.png", photo.id())).unwrap();
+            file.write_all(&data).unwrap();
+
+            Ok(())
+        });
     }
+
+    tasks.join_all().await;
 
     Ok(())
 }

@@ -6,7 +6,6 @@ use reqwest::{
     Client as HttpClient, RequestBuilder, Response,
 };
 use serde::{Deserialize, Serialize};
-use tokio::task::JoinSet;
 
 pub mod error;
 pub mod result;
@@ -56,6 +55,7 @@ impl Photo {
     }
 }
 
+#[derive(Clone)]
 pub struct Client {
     http: HttpClient,
 }
@@ -83,8 +83,9 @@ impl Client {
             .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()));
 
         let response = Self::send_request(request).await?;
+        let topic = response.json().await.map_err(|_| Error::InvalidResponse)?;
 
-        Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
+        Ok(topic)
     }
 
     pub async fn fetch_photos(&self, topic: &Topic, count: u32) -> Result<Vec<Photo>> {
@@ -97,52 +98,32 @@ impl Client {
             ));
 
         let response = Self::send_request(request).await?;
+        let photos = response.json().await.map_err(|_| Error::InvalidResponse)?;
 
-        Ok(response.json().await.map_err(|_| Error::InvalidResponse)?)
+        Ok(photos)
     }
 
-    pub async fn download_photos(
-        &self,
-        photos: Vec<Photo>,
-        quality: Quality,
-    ) -> Vec<(Photo, Result<Bytes>)> {
-        let mut tasks = JoinSet::new();
+    pub async fn download_photo(&self, photo: &Photo, quality: Quality) -> Result<Bytes> {
+        let track_request = self.http.get(&photo.links["download_location"]);
 
-        for photo in photos.into_iter() {
-            let client = self.http.clone();
-            let quality = quality.clone();
+        Self::send_request(track_request).await?;
 
-            tasks.spawn(async move {
-                let bytes = async {
-                    client
-                        .get(&photo.links["download_location"])
-                        .send()
-                        .await
-                        .map_err(|_| Error::Request)?;
+        let mut download_request = self.http.get(&photo.urls["raw"]).query(query_params!(
+            "fm" => "png",
+        ));
 
-                    let mut request = client.get(&photo.urls["raw"]).query(query_params!(
-                        "fm" => "png",
-                    ));
-
-                    if let Quality::Custom(w, h) = quality {
-                        request = request.query(query_params!(
-                            "w" => w,
-                            "h" => h,
-                            "fit" => "min",
-                        ));
-                    }
-
-                    let response = Self::send_request(request).await?;
-
-                    Ok(response.bytes().await.map_err(|_| Error::InvalidResponse)?)
-                }
-                .await;
-
-                (photo, bytes)
-            });
+        if let Quality::Custom(w, h) = quality {
+            download_request = download_request.query(query_params!(
+                "w" => w,
+                "h" => h,
+                "fit" => "min",
+            ));
         }
 
-        tasks.join_all().await
+        let response = Self::send_request(download_request).await?;
+        let data = response.bytes().await.map_err(|_| Error::InvalidResponse)?;
+
+        Ok(data)
     }
 
     async fn send_request(request: RequestBuilder) -> Result<Response> {
