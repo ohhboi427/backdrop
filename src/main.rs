@@ -1,6 +1,10 @@
 pub mod unsplash;
 
-use std::{env, fs::File, io::Write};
+use std::{
+    env,
+    fs::{self, File},
+    io::Write,
+};
 
 use tokio::task::JoinSet;
 
@@ -16,7 +20,7 @@ async fn main() -> Result<()> {
     let topic = client.find_topic("nature").await?;
     let photos = client.fetch_photos(&topic, 10).await?;
 
-    std::fs::create_dir("photos").unwrap();
+    fs::create_dir("photos").unwrap();
 
     let mut tasks = JoinSet::<Result<()>>::new();
     for photo in photos {

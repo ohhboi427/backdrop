@@ -61,8 +61,8 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new<T: AsRef<str>>(api_key: T) -> Result<Self> {
-        let auth = format!("Client-ID {}", api_key.as_ref());
+    pub fn new(api_key: &str) -> Result<Self> {
+        let auth = format!("Client-ID {}", api_key);
         let mut auth = HeaderValue::from_str(&auth).map_err(|_| Error::InvalidApiKey)?;
         auth.set_sensitive(true);
 
@@ -77,10 +77,10 @@ impl Client {
         })
     }
 
-    pub async fn find_topic<T: AsRef<str>>(&self, id_or_slug: T) -> Result<Topic> {
+    pub async fn find_topic(&self, id_or_slug: &str) -> Result<Topic> {
         let request = self
             .http
-            .get(unsplash_api!("/topics/{}", id_or_slug.as_ref()));
+            .get(unsplash_api!("/topics/{}", id_or_slug));
 
         let response = Self::send_request(request).await?;
         let topic = response.json().await.map_err(|_| Error::InvalidResponse)?;
