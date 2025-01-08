@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     env,
     fs::{self, File},
     io::{self, Write},
@@ -73,11 +74,11 @@ fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) -> io::Result<()>
             .unwrap_or(UNIX_EPOCH)
     });
 
+    let mut files = VecDeque::from(files);
     while size > max_size {
-        let file = files.remove(files.len() - 1);
+        let file = files.pop_front().unwrap();
 
         fs::remove_file(file.path())?;
-
         size -= file.metadata()?.len();
     }
 
