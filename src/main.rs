@@ -7,10 +7,11 @@ use std::{
 };
 
 use anyhow::Result;
+use bytes::Bytes;
 use tokio::task::JoinSet;
 
 mod unsplash;
-use unsplash::{Client, Quality};
+use unsplash::{Client, Photo, Quality};
 
 async fn fetch_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
     let api_key = env::var("UNSPLASH_API_KEY")?;
@@ -22,24 +23,28 @@ async fn fetch_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
 
     fs::create_dir_all(folder.as_ref())?;
 
-    let mut tasks = JoinSet::<Result<()>>::new();
+    let mut tasks = JoinSet::<unsplash::Result<(Photo, Bytes)>>::new();
     for photo in photos {
         let client = client.clone();
-        let path = folder.as_ref().join(format!("{}.png", &photo.id()));
 
         tasks.spawn(async move {
             let data = client
                 .download_photo(&photo, Quality::Custom(1920, 1080))
                 .await?;
 
-            let mut file = File::create(path)?;
-            file.write_all(&data)?;
-
-            Ok(())
+            Ok((photo, data))
         });
     }
 
-    tasks.join_all().await;
+    let photos = tasks.join_all().await;
+    for photo in photos {
+        let (photo, data) = photo?;
+
+        let path = folder.as_ref().join(format!("{}.png", photo.id()));
+
+        let mut file = File::create(path)?;
+        file.write_all(&data)?
+    }
 
     Ok(())
 }
