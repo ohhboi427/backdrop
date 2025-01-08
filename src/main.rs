@@ -1,25 +1,26 @@
-use std::time::UNIX_EPOCH;
 use std::{
     env,
     fs::{self, File},
-    io::Write,
+    io::{self, Write},
     path::{Path, PathBuf},
+    time::UNIX_EPOCH,
 };
 
+use anyhow::Result;
 use tokio::task::JoinSet;
 
 mod unsplash;
-use unsplash::{Client, Quality, Result};
+use unsplash::{Client, Quality};
 
 async fn fetch_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
-    let api_key = env::var("UNSPLASH_API_KEY").unwrap();
+    let api_key = env::var("UNSPLASH_API_KEY")?;
 
     let client = Client::new(&api_key)?;
 
     let topic = client.find_topic("nature").await?;
     let photos = client.fetch_photos(&topic, 10).await?;
 
-    fs::create_dir_all(folder.as_ref()).unwrap();
+    fs::create_dir_all(folder.as_ref())?;
 
     let mut tasks = JoinSet::<Result<()>>::new();
     for photo in photos {
@@ -31,8 +32,8 @@ async fn fetch_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
                 .download_photo(&photo, Quality::Custom(1920, 1080))
                 .await?;
 
-            let mut file = File::create(path).unwrap();
-            file.write_all(&data).unwrap();
+            let mut file = File::create(path)?;
+            file.write_all(&data)?;
 
             Ok(())
         });
@@ -43,44 +44,51 @@ async fn fetch_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
     Ok(())
 }
 
-fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) {
+fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) -> io::Result<()> {
     let mut files: Vec<_> = folder
         .as_ref()
-        .read_dir()
-        .unwrap()
+        .read_dir()?
         .filter_map(|file| file.ok())
         .collect();
 
     let mut size: u64 = files
         .iter()
-        .map(|file| file.metadata().unwrap().len())
+        .filter_map(|file| file.metadata().ok())
+        .map(|metadata| metadata.len())
         .sum();
 
     if size <= max_size {
-        return;
+        return Ok(());
     }
 
-    files.sort_by_key(|file| file.metadata().unwrap().created().unwrap_or(UNIX_EPOCH));
+    files.sort_by_key(|file| {
+        file.metadata()
+            .ok()
+            .and_then(|metadata| metadata.created().ok())
+            .unwrap_or(UNIX_EPOCH)
+    });
 
     while size > max_size {
         let file = files.remove(files.len() - 1);
 
-        fs::remove_file(file.path()).unwrap();
+        fs::remove_file(file.path())?;
 
-        size -= file.metadata().unwrap().len();
+        size -= file.metadata()?.len();
     }
+
+    Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenvy::dotenv().unwrap();
+    dotenvy::dotenv()?;
 
-    let folder = PathBuf::from(env::var("USERPROFILE").unwrap())
+    let folder = PathBuf::from(env::var("USERPROFILE")?)
         .join("Pictures")
         .join("Backdrop");
 
     fetch_photos(&folder).await?;
-    delete_old_photos(&folder, 100_000_000);
+    delete_old_photos(&folder, 100_000_000)?;
 
     Ok(())
 }
