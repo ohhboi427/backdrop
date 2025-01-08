@@ -1,3 +1,4 @@
+use std::time::UNIX_EPOCH;
 use std::{
     env,
     fs::{self, File},
@@ -42,6 +43,34 @@ async fn fetch_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
     Ok(())
 }
 
+fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) {
+    let mut files: Vec<_> = folder
+        .as_ref()
+        .read_dir()
+        .unwrap()
+        .filter_map(|file| file.ok())
+        .collect();
+
+    let mut size: u64 = files
+        .iter()
+        .map(|file| file.metadata().unwrap().len())
+        .sum();
+
+    if size <= max_size {
+        return;
+    }
+
+    files.sort_by_key(|file| file.metadata().unwrap().created().unwrap_or(UNIX_EPOCH));
+
+    while size > max_size {
+        let file = files.remove(files.len() - 1);
+
+        fs::remove_file(file.path()).unwrap();
+
+        size -= file.metadata().unwrap().len();
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().unwrap();
@@ -51,6 +80,7 @@ async fn main() -> Result<()> {
         .join("Backdrop");
 
     fetch_photos(&folder).await?;
+    delete_old_photos(&folder, 100_000_000);
 
     Ok(())
 }
