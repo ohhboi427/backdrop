@@ -74,7 +74,8 @@ impl Client {
             .get(unsplash_api!("/photos/random"))
             .query(query_params!(
                 "count" => count,
-                "topics" => topic.id()
+                "topics" => topic.id(),
+                "orientation" => "landscape"
             ));
 
         let response = Self::send_request(request).await?;
