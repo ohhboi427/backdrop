@@ -19,6 +19,6 @@ impl Photo {
     }
 
     pub fn download_track_url(&self) -> &str {
-        &self.urls["download_location"]
+        &self.links["download_location"]
     }
 }
