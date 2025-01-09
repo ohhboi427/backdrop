@@ -16,14 +16,14 @@ mod unsplash;
 use unsplash::{Client, Download, Fetch, Photo};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Properties {
+struct Config {
     folder: PathBuf,
     max_size: u64,
     fetch: Fetch,
     download: Download,
 }
 
-impl Default for Properties {
+impl Default for Config {
     fn default() -> Self {
         let folder = env::var("USERPROFILE")
             .map(|path| PathBuf::from(path).join("Pictures").join("Backdrop"))
@@ -38,16 +38,16 @@ impl Default for Properties {
     }
 }
 
-async fn download_photos(properties: &Properties) -> Result<()> {
+async fn download_photos(config: &Config) -> Result<()> {
     let api_key = env::var("UNSPLASH_API_KEY")?;
     let client = Client::new(&api_key)?;
 
-    let photos = client.fetch_photos(&properties.fetch).await?;
+    let photos = client.fetch_photos(&config.fetch).await?;
 
     let mut tasks = JoinSet::<unsplash::Result<(Photo, Bytes)>>::new();
     for photo in photos {
         let client = client.clone();
-        let download = properties.download.clone();
+        let download = config.download.clone();
 
         tasks.spawn(async move {
             let data = client.download_photo(&photo, &download).await?;
@@ -56,13 +56,13 @@ async fn download_photos(properties: &Properties) -> Result<()> {
         });
     }
 
-    fs::create_dir_all(&properties.folder)?;
+    fs::create_dir_all(&config.folder)?;
 
     let photos = tasks.join_all().await;
     for photo in photos {
         let (photo, data) = photo?;
 
-        let path = properties.folder.join(format!("{}.png", photo.id()));
+        let path = config.folder.join(format!("{}.png", photo.id()));
 
         let mut file = File::create(path)?;
         file.write_all(&data)?
@@ -71,8 +71,8 @@ async fn download_photos(properties: &Properties) -> Result<()> {
     Ok(())
 }
 
-fn delete_old_photos(properties: &Properties) -> io::Result<()> {
-    let mut files: Vec<_> = properties
+fn delete_old_photos(config: &Config) -> io::Result<()> {
+    let mut files: Vec<_> = config
         .folder
         .read_dir()?
         .filter_map(|file| file.ok())
@@ -84,7 +84,7 @@ fn delete_old_photos(properties: &Properties) -> io::Result<()> {
         .map(|metadata| metadata.len())
         .sum();
 
-    if size <= properties.max_size {
+    if size <= config.max_size {
         return Ok(());
     }
 
@@ -96,7 +96,7 @@ fn delete_old_photos(properties: &Properties) -> io::Result<()> {
     });
 
     let mut files = VecDeque::from(files);
-    while size > properties.max_size {
+    while size > config.max_size {
         let file = files.pop_front().unwrap();
 
         fs::remove_file(file.path())?;
@@ -106,37 +106,37 @@ fn delete_old_photos(properties: &Properties) -> io::Result<()> {
     Ok(())
 }
 
-fn properties() -> Result<Properties> {
-    const PROPERTIES_PATH: &'static str = "config.json";
+fn config() -> Result<Config> {
+    const CONFIG_PATH: &'static str = "config.json";
 
-    fn read_properties() -> Result<Properties> {
-        let mut file = File::open(PROPERTIES_PATH)?;
+    fn read_config() -> Result<Config> {
+        let mut file = File::open(CONFIG_PATH)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
 
         Ok(serde_json::from_str(&contents)?)
     }
 
-    fn write_properties() -> Result<Properties> {
-        let properties = Properties::default();
-        let contents = serde_json::to_string_pretty(&properties)?;
+    fn write_config() -> Result<Config> {
+        let config = Config::default();
+        let contents = serde_json::to_string_pretty(&config)?;
 
-        let mut file = File::create(PROPERTIES_PATH)?;
+        let mut file = File::create(CONFIG_PATH)?;
         file.write_all(contents.as_bytes())?;
 
-        Ok(properties)
+        Ok(config)
     }
 
-    read_properties().or_else(|_| write_properties())
+    read_config().or_else(|_| write_config())
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv()?;
 
-    let properties = properties()?;
-    download_photos(&properties).await?;
-    delete_old_photos(&properties)?;
+    let config = config()?;
+    download_photos(&config).await?;
+    delete_old_photos(&config)?;
 
     Ok(())
 }
