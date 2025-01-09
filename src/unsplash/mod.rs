@@ -66,7 +66,14 @@ impl QueryParams for Fetch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Format {
+    Png,
+    Jpeg { quality: u8 },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged, rename_all = "snake_case")]
 pub enum Resolution {
     Raw,
     Custom { width: u32, height: u32 },
@@ -74,12 +81,14 @@ pub enum Resolution {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Download {
+    format: Format,
     resolution: Resolution,
 }
 
 impl Default for Download {
     fn default() -> Self {
         Self {
+            format: Format::Png,
             resolution: Resolution::Custom {
                 width: 1920,
                 height: 1080,
