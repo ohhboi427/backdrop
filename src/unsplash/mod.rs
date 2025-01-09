@@ -33,6 +33,13 @@ macro_rules! query_params {
     };
 }
 
+type Resolution = (u32, u32);
+type QueryParam = (&'static str, String);
+
+trait QueryParams {
+    fn query_params(&self) -> Vec<QueryParam>;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Fetch {
     count: u32,
@@ -48,14 +55,43 @@ impl Default for Fetch {
     }
 }
 
+impl QueryParams for Fetch {
+    fn query_params(&self) -> Vec<QueryParam> {
+        let params = Vec::from(query_params!(
+            "count" => self.count,
+            "orientation" => "landscape",
+        ));
+
+        params
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Download {
-    resolution: Option<(u32, u32)>,
+    resolution: Option<Resolution>,
 }
 
 impl Default for Download {
     fn default() -> Self {
         Self { resolution: None }
+    }
+}
+
+impl QueryParams for Download {
+    fn query_params(&self) -> Vec<QueryParam> {
+        let mut params = Vec::from(query_params!(
+            "fm" => "png",
+        ));
+
+        self.resolution.inspect(|(width, height)| {
+            params.extend_from_slice(query_params!(
+                "w" => width,
+                "h" => height,
+                "fit" => "min",
+            ))
+        });
+
+        params
     }
 }
 
@@ -85,18 +121,16 @@ impl Client {
         let mut request = self
             .http
             .get(unsplash_api!("/photos/random"))
-            .query(query_params!(
-                "count" => fetch.count,
-                "orientation" => "landscape"
-            ));
+            .query(&fetch.query_params());
 
-        if let Some(topic) = &fetch.topic {
-            let topic = self.find_topic(topic).await?;
-
+        if let Some(id_or_slug) = &fetch.topic {
+            let topic = self.find_topic(id_or_slug).await?;
             request = request.query(query_params!(
-                "topic" => topic.id(),
+                "topic" => topic.id()
             ));
         }
+
+        println!("{:?}", request);
 
         let response = Self::send_request(request).await?;
         let photos = response.json().await.map_err(|_| Error::InvalidResponse)?;
@@ -106,20 +140,12 @@ impl Client {
 
     pub async fn download_photo(&self, photo: &Photo, download: &Download) -> Result<Bytes> {
         let track_request = self.http.get(photo.download_track_url());
-
         Self::send_request(track_request).await?;
 
-        let mut download_request = self.http.get(photo.file_url()).query(query_params!(
-            "fm" => "png",
-        ));
-
-        if let Some((width, height)) = download.resolution {
-            download_request = download_request.query(query_params!(
-                "w" => width,
-                "h" => height,
-                "fit" => "min",
-            ));
-        }
+        let download_request = self
+            .http
+            .get(photo.file_url())
+            .query(&download.query_params());
 
         let response = Self::send_request(download_request).await?;
         let data = response.bytes().await.map_err(|_| Error::InvalidResponse)?;

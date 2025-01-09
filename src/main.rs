@@ -40,12 +40,9 @@ impl Default for Properties {
 
 async fn download_photos(properties: &Properties) -> Result<()> {
     let api_key = env::var("UNSPLASH_API_KEY")?;
-
     let client = Client::new(&api_key)?;
 
     let photos = client.fetch_photos(&properties.fetch).await?;
-
-    fs::create_dir_all(&properties.folder)?;
 
     let mut tasks = JoinSet::<unsplash::Result<(Photo, Bytes)>>::new();
     for photo in photos {
@@ -58,6 +55,8 @@ async fn download_photos(properties: &Properties) -> Result<()> {
             Ok((photo, data))
         });
     }
+
+    fs::create_dir_all(&properties.folder)?;
 
     let photos = tasks.join_all().await;
     for photo in photos {
