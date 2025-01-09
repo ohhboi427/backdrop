@@ -135,6 +135,11 @@ fn configure<P: AsRef<Path>>(path: P) -> Result<Config> {
 
         serde_json::from_str(&contents)?
     } else {
+        println!(
+            "You can change the default options for fetching and downloading photos in {}",
+            config_path.display()
+        );
+
         let config = Config::default();
         let content = serde_json::to_string_pretty(&config)?;
 
