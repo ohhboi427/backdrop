@@ -3,7 +3,7 @@ use std::{
     env,
     fs::{self, File},
     io::{self, Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::UNIX_EPOCH,
 };
 
@@ -106,31 +106,35 @@ fn delete_old_photos(properties: &Properties) -> io::Result<()> {
     Ok(())
 }
 
+fn properties() -> Result<Properties> {
+    const PROPERTIES_PATH: &'static str = "config.json";
+
+    fn read_properties() -> Result<Properties> {
+        let mut file = File::open(PROPERTIES_PATH)?;
+        let mut contents = Default::default();
+        file.read_to_string(&mut contents)?;
+
+        Ok(serde_json::from_str(&contents)?)
+    }
+
+    fn write_properties() -> Result<Properties> {
+        let properties = Properties::default();
+        let contents = serde_json::to_string_pretty(&properties)?;
+
+        let mut file = File::create(PROPERTIES_PATH)?;
+        file.write_all(contents.as_bytes())?;
+
+        Ok(properties)
+    }
+
+    read_properties().or_else(|_| write_properties())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv()?;
 
-    let config_path = Path::new("config.json");
-
-    let properties = match File::open(config_path) {
-        Ok(mut file) => {
-            let mut contents = Default::default();
-            file.read_to_string(&mut contents)?;
-
-            serde_json::from_str(&contents)?
-        }
-
-        Err(_) => {
-            let properties = Properties::default();
-            let contents = serde_json::to_string_pretty(&properties)?;
-
-            let mut file = File::create(config_path)?;
-            file.write_all(contents.as_bytes())?;
-
-            properties
-        }
-    };
-
+    let properties = properties()?;
     download_photos(&properties).await?;
     delete_old_photos(&properties)?;
 

@@ -146,7 +146,7 @@ impl Client {
         if let Some(id_or_slug) = &fetch.topic {
             let topic = self.find_topic(id_or_slug).await?;
             request = request.query(query_params!(
-                "topic" => topic.id()
+                "topics" => topic.id()
             ));
         }
 
