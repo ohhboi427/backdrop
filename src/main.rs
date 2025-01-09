@@ -25,9 +25,9 @@ struct Properties {
 
 impl Default for Properties {
     fn default() -> Self {
-        let folder = PathBuf::from(env::var("USERPROFILE").unwrap_or_default())
-            .join("Pictures")
-            .join("Backdrop");
+        let folder = env::var("USERPROFILE")
+            .map(|path| PathBuf::from(path).join("Pictures").join("Backdrop"))
+            .unwrap_or_default();
 
         Self {
             folder,
