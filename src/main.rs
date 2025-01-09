@@ -1,3 +1,7 @@
+use anyhow::Result;
+use bytes::Bytes;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::{
     collections::VecDeque,
     env,
@@ -6,10 +10,6 @@ use std::{
     path::PathBuf,
     time::UNIX_EPOCH,
 };
-
-use anyhow::Result;
-use bytes::Bytes;
-use serde::{Deserialize, Serialize};
 use tokio::task::JoinSet;
 
 mod unsplash;
@@ -104,35 +104,57 @@ fn delete_old_photos(config: &Config) -> io::Result<()> {
     Ok(())
 }
 
-fn config() -> Result<Config> {
-    const CONFIG_PATH: &'static str = "config.json";
+fn setup<P: AsRef<Path>>(path: P) -> Result<()> {
+    if !path.exists() {
+        fs::create_dir_all(&path)?;
+    }
 
-    fn read_config() -> Result<Config> {
-        let mut file = File::open(CONFIG_PATH)?;
+    let env_path = path.join(".env");
+    if !env_path.exists() {
+        println!(
+            "You must set the Unsplash Access Key in {}",
+            &env_path.display()
+        );
+
+        fs::copy(".env.example", &env_path)?;
+    }
+
+    dotenvy::from_path(env_path)?;
+
+    Ok(())
+}
+
+fn config<P: AsRef<Path>>(path: P) -> Result<Config> {
+    let config_path = path.as_ref().join("config.json");
+
+    let read_config = || -> Result<Config> {
+        let mut file = File::open(&config_path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
 
         Ok(serde_json::from_str(&contents)?)
-    }
+    };
 
-    fn write_config() -> Result<Config> {
+    let write_config = || -> Result<Config> {
         let config = Config::default();
         let contents = serde_json::to_string_pretty(&config)?;
 
-        let mut file = File::create(CONFIG_PATH)?;
+        let mut file = File::create(&config_path)?;
         file.write_all(contents.as_bytes())?;
 
         Ok(config)
-    }
+    };
 
     read_config().or_else(|_| write_config())
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenvy::dotenv()?;
+    let path = dirs::config_dir().unwrap().join("Backdrop");
 
-    let config = config()?;
+    setup(&path)?;
+    let config = config(&path)?;
+
     download_photos(&config).await?;
     delete_old_photos(&config)?;
 
