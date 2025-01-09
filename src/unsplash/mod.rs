@@ -33,7 +33,6 @@ macro_rules! query_params {
     };
 }
 
-type Resolution = (u32, u32);
 type QueryParam = (&'static str, String);
 
 trait QueryParams {
@@ -67,13 +66,25 @@ impl QueryParams for Fetch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Resolution {
+    Raw,
+    Custom { width: u32, height: u32 },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Download {
-    resolution: Option<Resolution>,
+    resolution: Resolution,
 }
 
 impl Default for Download {
     fn default() -> Self {
-        Self { resolution: None }
+        Self {
+            resolution: Resolution::Custom {
+                width: 1920,
+                height: 1080,
+            },
+        }
     }
 }
 
@@ -83,13 +94,13 @@ impl QueryParams for Download {
             "fm" => "png",
         ));
 
-        self.resolution.inspect(|(width, height)| {
+        if let Resolution::Custom { width, height } = self.resolution {
             params.extend_from_slice(query_params!(
                 "w" => width,
                 "h" => height,
                 "fit" => "min",
             ))
-        });
+        }
 
         params
     }
@@ -129,8 +140,6 @@ impl Client {
                 "topic" => topic.id()
             ));
         }
-
-        println!("{:?}", request);
 
         let response = Self::send_request(request).await?;
         let photos = response.json().await.map_err(|_| Error::InvalidResponse)?;
