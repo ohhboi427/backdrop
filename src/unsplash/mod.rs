@@ -56,7 +56,7 @@ impl Default for Fetch {
     fn default() -> Self {
         Self {
             count: 1,
-            query: Some(Query::Topic("nature".to_owned())),
+            query: None,
         }
     }
 }

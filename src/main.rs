@@ -111,7 +111,7 @@ fn properties() -> Result<Properties> {
 
     fn read_properties() -> Result<Properties> {
         let mut file = File::open(PROPERTIES_PATH)?;
-        let mut contents = Default::default();
+        let mut contents = String::new();
         file.read_to_string(&mut contents)?;
 
         Ok(serde_json::from_str(&contents)?)
