@@ -2,27 +2,47 @@ use std::{
     collections::VecDeque,
     env,
     fs::{self, File},
-    io::{self, Write},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
 
 use anyhow::Result;
 use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 use tokio::task::JoinSet;
 
 mod unsplash;
 use unsplash::{Client, Photo, Quality};
 
-async fn download_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
+#[derive(Serialize, Deserialize)]
+struct Properties {
+    folder: PathBuf,
+    topic: String,
+    count: u32,
+    max_size: u64,
+}
+
+impl Default for Properties {
+    fn default() -> Self {
+        Self {
+            folder: PathBuf::new(),
+            topic: "nature".to_owned(),
+            count: 10,
+            max_size: 100_000_000,
+        }
+    }
+}
+
+async fn download_photos(properties: &Properties) -> Result<()> {
     let api_key = env::var("UNSPLASH_API_KEY")?;
 
     let client = Client::new(&api_key)?;
 
-    let topic = client.find_topic("nature").await?;
-    let photos = client.fetch_photos(&topic, 10).await?;
+    let topic = client.find_topic(&properties.topic).await?;
+    let photos = client.fetch_photos(&topic, properties.count).await?;
 
-    fs::create_dir_all(folder.as_ref())?;
+    fs::create_dir_all(&properties.folder)?;
 
     let mut tasks = JoinSet::<unsplash::Result<(Photo, Bytes)>>::new();
     for photo in photos {
@@ -41,7 +61,7 @@ async fn download_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()>
     for photo in photos {
         let (photo, data) = photo?;
 
-        let path = folder.as_ref().join(format!("{}.png", photo.id()));
+        let path = properties.folder.join(format!("{}.png", photo.id()));
 
         let mut file = File::create(path)?;
         file.write_all(&data)?
@@ -50,9 +70,9 @@ async fn download_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()>
     Ok(())
 }
 
-fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) -> io::Result<()> {
-    let mut files: Vec<_> = folder
-        .as_ref()
+fn delete_old_photos(properties: &Properties) -> io::Result<()> {
+    let mut files: Vec<_> = properties
+        .folder
         .read_dir()?
         .filter_map(|file| file.ok())
         .collect();
@@ -63,7 +83,7 @@ fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) -> io::Result<()>
         .map(|metadata| metadata.len())
         .sum();
 
-    if size <= max_size {
+    if size <= properties.max_size {
         return Ok(());
     }
 
@@ -75,7 +95,7 @@ fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) -> io::Result<()>
     });
 
     let mut files = VecDeque::from(files);
-    while size > max_size {
+    while size > properties.max_size {
         let file = files.pop_front().unwrap();
 
         fs::remove_file(file.path())?;
@@ -89,12 +109,28 @@ fn delete_old_photos<P: AsRef<Path>>(folder: P, max_size: u64) -> io::Result<()>
 async fn main() -> Result<()> {
     dotenvy::dotenv()?;
 
-    let folder = PathBuf::from(env::var("USERPROFILE")?)
-        .join("Pictures")
-        .join("Backdrop");
+    let config_path = Path::new("config.toml");
+    let properties = if config_path.exists() {
+        let mut file = File::open(config_path)?;
+        let mut contents = Default::default();
+        file.read_to_string(&mut contents)?;
 
-    download_photos(&folder).await?;
-    delete_old_photos(&folder, 100_000_000)?;
+        toml::from_str(contents.as_str())?
+    } else {
+        let mut properties = Properties::default();
+        properties.folder = PathBuf::from(env::var("USERPROFILE")?)
+            .join("Pictures")
+            .join("Backdrop");
+
+        properties
+    };
+
+    download_photos(&properties).await?;
+    delete_old_photos(&properties)?;
+
+    let mut file = File::create(config_path)?;
+    let properties = toml::to_string_pretty(&properties)?;
+    file.write_all(properties.as_bytes())?;
 
     Ok(())
 }
