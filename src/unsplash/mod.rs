@@ -40,16 +40,23 @@ trait QueryParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "category", content = "value", rename_all = "snake_case")]
+pub enum Query {
+    Text(String),
+    Topic(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Fetch {
     count: u32,
-    topic: Option<String>,
+    query: Option<Query>,
 }
 
 impl Default for Fetch {
     fn default() -> Self {
         Self {
             count: 1,
-            topic: None,
+            query: Some(Query::Topic("nature".to_owned())),
         }
     }
 }
@@ -143,11 +150,21 @@ impl Client {
             .get(unsplash_api!("/photos/random"))
             .query(&fetch.query_params());
 
-        if let Some(id_or_slug) = &fetch.topic {
-            let topic = self.find_topic(id_or_slug).await?;
-            request = request.query(query_params!(
-                "topics" => topic.id()
-            ));
+        if let Some(query) = &fetch.query {
+            match query {
+                Query::Text(text) => {
+                    request = request.query(query_params!(
+                        "query" => text
+                    ))
+                }
+
+                Query::Topic(id_or_slug) => {
+                    let topic = self.find_topic(&id_or_slug).await?;
+                    request = request.query(query_params!(
+                        "topics" => topic.id()
+                    ));
+                }
+            }
         }
 
         let response = Self::send_request(request).await?;
