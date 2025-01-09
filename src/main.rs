@@ -25,8 +25,12 @@ struct Properties {
 
 impl Default for Properties {
     fn default() -> Self {
+        let folder = PathBuf::from(env::var("USERPROFILE").unwrap_or_default())
+            .join("Pictures")
+            .join("Backdrop");
+
         Self {
-            folder: PathBuf::new(),
+            folder,
             topic: "nature".to_owned(),
             count: 10,
             max_size: 100_000_000,
@@ -110,27 +114,28 @@ async fn main() -> Result<()> {
     dotenvy::dotenv()?;
 
     let config_path = Path::new("config.toml");
-    let properties = if config_path.exists() {
-        let mut file = File::open(config_path)?;
-        let mut contents = Default::default();
-        file.read_to_string(&mut contents)?;
 
-        toml::from_str(contents.as_str())?
-    } else {
-        let mut properties = Properties::default();
-        properties.folder = PathBuf::from(env::var("USERPROFILE")?)
-            .join("Pictures")
-            .join("Backdrop");
+    let properties = match File::open(config_path) {
+        Ok(mut file) => {
+            let mut contents = Default::default();
+            file.read_to_string(&mut contents)?;
 
-        properties
+            toml::from_str(&contents)?
+        }
+
+        Err(_) => {
+            let properties = Properties::default();
+            let contents = toml::to_string_pretty(&properties)?;
+
+            let mut file = File::create(config_path)?;
+            file.write_all(contents.as_bytes())?;
+
+            properties
+        }
     };
 
     download_photos(&properties).await?;
     delete_old_photos(&properties)?;
-
-    let mut file = File::create(config_path)?;
-    let properties = toml::to_string_pretty(&properties)?;
-    file.write_all(properties.as_bytes())?;
 
     Ok(())
 }
