@@ -13,14 +13,15 @@ use serde::{Deserialize, Serialize};
 use tokio::task::JoinSet;
 
 mod unsplash;
-use unsplash::{Client, Photo, Quality};
+use unsplash::{Client, Photo, Resolution};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Properties {
     folder: PathBuf,
-    topic: String,
     count: u32,
     max_size: u64,
+    topic: String,
+    resolution: Option<Resolution>,
 }
 
 impl Default for Properties {
@@ -31,9 +32,10 @@ impl Default for Properties {
 
         Self {
             folder,
-            topic: "nature".to_owned(),
-            count: 10,
+            count: 1,
             max_size: 100_000_000,
+            topic: "nature".to_owned(),
+            resolution: None,
         }
     }
 }
@@ -51,11 +53,10 @@ async fn download_photos(properties: &Properties) -> Result<()> {
     let mut tasks = JoinSet::<unsplash::Result<(Photo, Bytes)>>::new();
     for photo in photos {
         let client = client.clone();
+        let quality = properties.resolution.clone().unwrap_or_default();
 
         tasks.spawn(async move {
-            let data = client
-                .download_photo(&photo, Quality::Custom(1920, 1080))
-                .await?;
+            let data = client.download_photo(&photo, quality).await?;
 
             Ok((photo, data))
         });
@@ -113,19 +114,19 @@ fn delete_old_photos(properties: &Properties) -> io::Result<()> {
 async fn main() -> Result<()> {
     dotenvy::dotenv()?;
 
-    let config_path = Path::new("config.toml");
+    let config_path = Path::new("config.json");
 
     let properties = match File::open(config_path) {
         Ok(mut file) => {
             let mut contents = Default::default();
             file.read_to_string(&mut contents)?;
 
-            toml::from_str(&contents)?
+            serde_json::from_str(&contents)?
         }
 
         Err(_) => {
             let properties = Properties::default();
-            let contents = toml::to_string_pretty(&properties)?;
+            let contents = serde_json::to_string_pretty(&properties)?;
 
             let mut file = File::create(config_path)?;
             file.write_all(contents.as_bytes())?;

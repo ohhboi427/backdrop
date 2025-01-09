@@ -3,6 +3,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as HttpClient, RequestBuilder, Response,
 };
+use serde::{Deserialize, Serialize};
 
 mod models;
 pub use models::{Photo, Topic};
@@ -31,10 +32,17 @@ macro_rules! query_params {
     };
 }
 
-#[derive(Debug, Clone)]
-pub enum Quality {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum Resolution {
     Raw,
-    Custom(u32, u32),
+    Custom { width: u32, height: u32 },
+}
+
+impl Default for Resolution {
+    fn default() -> Self {
+        Resolution::Raw
+    }
 }
 
 #[derive(Clone)]
@@ -84,7 +92,7 @@ impl Client {
         Ok(photos)
     }
 
-    pub async fn download_photo(&self, photo: &Photo, quality: Quality) -> Result<Bytes> {
+    pub async fn download_photo(&self, photo: &Photo, quality: Resolution) -> Result<Bytes> {
         let track_request = self.http.get(photo.download_track_url());
 
         Self::send_request(track_request).await?;
@@ -93,10 +101,10 @@ impl Client {
             "fm" => "png",
         ));
 
-        if let Quality::Custom(w, h) = quality {
+        if let Resolution::Custom { width, height } = quality {
             download_request = download_request.query(query_params!(
-                "w" => w,
-                "h" => h,
+                "w" => width,
+                "h" => height,
                 "fit" => "min",
             ));
         }

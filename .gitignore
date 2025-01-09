@@ -1,6 +1,6 @@
 # Backdrop
 .env
-config.toml
+config.json
 
 # Jetbrains
 .idea
