@@ -25,9 +25,7 @@ struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        let folder = env::var("USERPROFILE")
-            .map(|path| PathBuf::from(path).join("Pictures").join("Backdrop"))
-            .unwrap_or_default();
+        let folder = dirs::picture_dir().unwrap().join("Backdrop");
 
         Self {
             folder,
