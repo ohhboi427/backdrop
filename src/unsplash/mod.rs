@@ -6,7 +6,8 @@ use reqwest::{
 use serde::{Deserialize, Serialize};
 
 mod models;
-pub use models::{Photo, Topic};
+pub use models::Photo;
+use models::Topic;
 
 mod error;
 pub use error::Error;
@@ -33,15 +34,28 @@ macro_rules! query_params {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", content = "data")]
-pub enum Resolution {
-    Raw,
-    Custom { width: u32, height: u32 },
+pub struct Fetch {
+    count: u32,
+    topic: Option<String>,
 }
 
-impl Default for Resolution {
+impl Default for Fetch {
     fn default() -> Self {
-        Resolution::Raw
+        Self {
+            count: 1,
+            topic: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Download {
+    resolution: Option<(u32, u32)>,
+}
+
+impl Default for Download {
+    fn default() -> Self {
+        Self { resolution: None }
     }
 }
 
@@ -67,24 +81,22 @@ impl Client {
         })
     }
 
-    pub async fn find_topic(&self, id_or_slug: &str) -> Result<Topic> {
-        let request = self.http.get(unsplash_api!("/topics/{}", id_or_slug));
-
-        let response = Self::send_request(request).await?;
-        let topic = response.json().await.map_err(|_| Error::InvalidResponse)?;
-
-        Ok(topic)
-    }
-
-    pub async fn fetch_photos(&self, topic: &Topic, count: u32) -> Result<Vec<Photo>> {
-        let request = self
+    pub async fn fetch_photos(&self, fetch: &Fetch) -> Result<Vec<Photo>> {
+        let mut request = self
             .http
             .get(unsplash_api!("/photos/random"))
             .query(query_params!(
-                "count" => count,
-                "topics" => topic.id(),
+                "count" => fetch.count,
                 "orientation" => "landscape"
             ));
+
+        if let Some(topic) = &fetch.topic {
+            let topic = self.find_topic(topic).await?;
+
+            request = request.query(query_params!(
+                "topic" => topic.id(),
+            ));
+        }
 
         let response = Self::send_request(request).await?;
         let photos = response.json().await.map_err(|_| Error::InvalidResponse)?;
@@ -92,7 +104,7 @@ impl Client {
         Ok(photos)
     }
 
-    pub async fn download_photo(&self, photo: &Photo, quality: Resolution) -> Result<Bytes> {
+    pub async fn download_photo(&self, photo: &Photo, download: &Download) -> Result<Bytes> {
         let track_request = self.http.get(photo.download_track_url());
 
         Self::send_request(track_request).await?;
@@ -101,7 +113,7 @@ impl Client {
             "fm" => "png",
         ));
 
-        if let Resolution::Custom { width, height } = quality {
+        if let Some((width, height)) = download.resolution {
             download_request = download_request.query(query_params!(
                 "w" => width,
                 "h" => height,
@@ -113,6 +125,15 @@ impl Client {
         let data = response.bytes().await.map_err(|_| Error::InvalidResponse)?;
 
         Ok(data)
+    }
+
+    async fn find_topic(&self, id_or_slug: &str) -> Result<Topic> {
+        let request = self.http.get(unsplash_api!("/topics/{}", id_or_slug));
+
+        let response = Self::send_request(request).await?;
+        let topic = response.json().await.map_err(|_| Error::InvalidResponse)?;
+
+        Ok(topic)
     }
 
     async fn send_request(request: RequestBuilder) -> Result<Response> {

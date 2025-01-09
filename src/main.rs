@@ -13,15 +13,14 @@ use serde::{Deserialize, Serialize};
 use tokio::task::JoinSet;
 
 mod unsplash;
-use unsplash::{Client, Photo, Resolution};
+use unsplash::{Client, Download, Fetch, Photo};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Properties {
     folder: PathBuf,
-    count: u32,
     max_size: u64,
-    topic: String,
-    resolution: Option<Resolution>,
+    fetch: Fetch,
+    download: Download,
 }
 
 impl Default for Properties {
@@ -32,10 +31,9 @@ impl Default for Properties {
 
         Self {
             folder,
-            count: 1,
             max_size: 100_000_000,
-            topic: "nature".to_owned(),
-            resolution: None,
+            fetch: Default::default(),
+            download: Default::default(),
         }
     }
 }
@@ -45,18 +43,17 @@ async fn download_photos(properties: &Properties) -> Result<()> {
 
     let client = Client::new(&api_key)?;
 
-    let topic = client.find_topic(&properties.topic).await?;
-    let photos = client.fetch_photos(&topic, properties.count).await?;
+    let photos = client.fetch_photos(&properties.fetch).await?;
 
     fs::create_dir_all(&properties.folder)?;
 
     let mut tasks = JoinSet::<unsplash::Result<(Photo, Bytes)>>::new();
     for photo in photos {
         let client = client.clone();
-        let quality = properties.resolution.clone().unwrap_or_default();
+        let download = properties.download.clone();
 
         tasks.spawn(async move {
-            let data = client.download_photo(&photo, quality).await?;
+            let data = client.download_photo(&photo, &download).await?;
 
             Ok((photo, data))
         });
