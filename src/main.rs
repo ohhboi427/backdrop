@@ -14,7 +14,7 @@ use tokio::task::JoinSet;
 mod unsplash;
 use unsplash::{Client, Photo, Quality};
 
-async fn fetch_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
+async fn download_photos<P: AsRef<Path> + Send + Clone>(folder: P) -> Result<()> {
     let api_key = env::var("UNSPLASH_API_KEY")?;
 
     let client = Client::new(&api_key)?;
@@ -93,7 +93,7 @@ async fn main() -> Result<()> {
         .join("Pictures")
         .join("Backdrop");
 
-    fetch_photos(&folder).await?;
+    download_photos(&folder).await?;
     delete_old_photos(&folder, 100_000_000)?;
 
     Ok(())
