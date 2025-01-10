@@ -47,8 +47,8 @@ pub enum Query {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Fetch {
-    count: u32,
-    query: Option<Query>,
+    pub count: u32,
+    pub query: Option<Query>,
 }
 
 impl Default for Fetch {
@@ -87,8 +87,8 @@ pub enum Resolution {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Download {
-    format: Format,
-    resolution: Resolution,
+    pub format: Format,
+    pub resolution: Resolution,
 }
 
 impl Default for Download {
@@ -146,19 +146,7 @@ impl Client {
     pub fn new_from_env() -> Result<Self> {
         let api_key = env::var("UNSPLASH_API_KEY").map_err(|_| Error::InvalidApiKey)?;
 
-        let auth = format!("Client-ID {}", api_key);
-        let mut auth = HeaderValue::from_str(&auth).map_err(|_| Error::InvalidApiKey)?;
-        auth.set_sensitive(true);
-
-        let mut headers = HeaderMap::new();
-        headers.insert("Authorization", auth);
-
-        Ok(Self {
-            http: HttpClient::builder()
-                .default_headers(headers)
-                .build()
-                .unwrap(),
-        })
+        Self::new(&api_key)
     }
 
     pub async fn fetch_photos(&self, fetch: &Fetch) -> Result<Vec<Photo>> {
