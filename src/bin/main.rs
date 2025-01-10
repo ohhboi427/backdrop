@@ -115,11 +115,12 @@ fn setup<P: AsRef<Path>>(path: P) -> io::Result<()> {
             env_path.display()
         );
 
-        fs::copy("../../.env.example", &env_path)?;
+        fs::copy(".env.example", &env_path)?;
     }
 
     dotenvy::from_path(env_path).map_err(|err| match err {
         dotenvy::Error::Io(err) => err,
+
         _ => unreachable!(),
     })?;
 
@@ -129,24 +130,28 @@ fn setup<P: AsRef<Path>>(path: P) -> io::Result<()> {
 fn configure<P: AsRef<Path>>(path: P) -> io::Result<Config> {
     let config_path = path.as_ref().join("config.json");
 
-    let config = if let Ok(mut file) = File::open(&config_path) {
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
+    let config = match File::open(&config_path) {
+        Ok(mut file) => {
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)?;
 
-        serde_json::from_str(&contents)?
-    } else {
-        println!(
-            "You can change the default options for fetching and downloading photos in {}",
-            config_path.display()
-        );
+            serde_json::from_str(&contents)?
+        }
 
-        let config = Config::default();
-        let content = serde_json::to_string_pretty(&config)?;
+        Err(_) => {
+            println!(
+                "You can change the default options for fetching and downloading photos in {}",
+                config_path.display()
+            );
 
-        let mut file = File::create(&config_path)?;
-        file.write_all(content.as_bytes())?;
+            let config = Config::default();
+            let content = serde_json::to_string_pretty(&config)?;
 
-        config
+            let mut file = File::create(&config_path)?;
+            file.write_all(content.as_bytes())?;
+
+            config
+        }
     };
 
     Ok(config)
