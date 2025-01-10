@@ -6,6 +6,7 @@ use reqwest::{
     Client as HttpClient, RequestBuilder, Response,
 };
 use serde::{Deserialize, Serialize};
+use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};
 
 mod models;
 pub use models::Photo;
@@ -54,7 +55,7 @@ pub struct Fetch {
 impl Default for Fetch {
     fn default() -> Self {
         Self {
-            count: 1,
+            count: 10,
             query: None,
         }
     }
@@ -95,9 +96,11 @@ impl Default for Download {
     fn default() -> Self {
         Self {
             format: Format::Png,
-            resolution: Resolution::Custom {
-                width: 1920,
-                height: 1080,
+            resolution: unsafe {
+                Resolution::Custom {
+                    width: GetSystemMetrics(SM_CXSCREEN) as u32,
+                    height: GetSystemMetrics(SM_CYSCREEN) as u32,
+                }
             },
         }
     }
