@@ -1,3 +1,5 @@
+use std::env;
+
 use bytes::Bytes;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -126,6 +128,24 @@ pub struct Client {
 
 impl Client {
     pub fn new(api_key: &str) -> Result<Self> {
+        let auth = format!("Client-ID {}", api_key);
+        let mut auth = HeaderValue::from_str(&auth).map_err(|_| Error::InvalidApiKey)?;
+        auth.set_sensitive(true);
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Authorization", auth);
+
+        Ok(Self {
+            http: HttpClient::builder()
+                .default_headers(headers)
+                .build()
+                .unwrap(),
+        })
+    }
+
+    pub fn new_from_env() -> Result<Self> {
+        let api_key = env::var("UNSPLASH_API_KEY").map_err(|_| Error::InvalidApiKey)?;
+
         let auth = format!("Client-ID {}", api_key);
         let mut auth = HeaderValue::from_str(&auth).map_err(|_| Error::InvalidApiKey)?;
         auth.set_sensitive(true);

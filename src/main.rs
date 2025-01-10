@@ -1,6 +1,5 @@
 use std::{
     collections::VecDeque,
-    env,
     fs::{self, File},
     io::{self, Read, Write},
     path::{Path, PathBuf},
@@ -37,8 +36,7 @@ impl Default for Config {
 }
 
 async fn download_photos(config: &Config) -> Result<()> {
-    let api_key = env::var("UNSPLASH_API_KEY")?;
-    let client = Client::new(&api_key)?;
+    let client = Client::new_from_env()?;
 
     let photos = client.fetch_photos(&config.fetch).await?;
 
