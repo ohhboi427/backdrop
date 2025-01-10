@@ -12,7 +12,7 @@ pub enum Error {
     #[error("Failed to send request")]
     Request,
 
-    #[error("HTTP error {0}")]
+    #[error("HTTP status: {0}")]
     Status(StatusCode),
 }
 

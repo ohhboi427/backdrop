@@ -156,13 +156,19 @@ fn configure<P: AsRef<Path>>(config_folder: P) -> Result<Config> {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let path = dirs::config_dir().unwrap().join("Backdrop");
+async fn main() {
+    async fn run() -> Result<()> {
+        let path = dirs::config_dir().unwrap().join("Backdrop");
 
-    let config = configure(&path)?;
+        let config = configure(&path)?;
 
-    download_photos(&config).await?;
-    delete_old_photos(&config)?;
+        download_photos(&config).await?;
+        delete_old_photos(&config)?;
 
-    Ok(())
+        Ok(())
+    }
+
+    if let Err(e) = run().await {
+        eprintln!("{}", e);
+    }
 }
