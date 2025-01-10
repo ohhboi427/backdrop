@@ -35,8 +35,8 @@ macro_rules! query_params {
 
 type QueryParam = (&'static str, String);
 
-trait QueryParams {
-    fn query_params(&self) -> Vec<QueryParam>;
+trait ToQueryParams {
+    fn to_query_params(&self) -> Vec<QueryParam>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,8 +61,8 @@ impl Default for Fetch {
     }
 }
 
-impl QueryParams for Fetch {
-    fn query_params(&self) -> Vec<QueryParam> {
+impl ToQueryParams for Fetch {
+    fn to_query_params(&self) -> Vec<QueryParam> {
         let params = Vec::from(query_params!(
             "count" => self.count,
             "orientation" => "landscape",
@@ -104,8 +104,8 @@ impl Default for Download {
     }
 }
 
-impl QueryParams for Download {
-    fn query_params(&self) -> Vec<QueryParam> {
+impl ToQueryParams for Download {
+    fn to_query_params(&self) -> Vec<QueryParam> {
         let mut params = Vec::from(query_params!(
             "fm" => "png",
         ));
@@ -148,7 +148,7 @@ impl Client {
         let mut request = self
             .http
             .get(unsplash_api!("/photos/random"))
-            .query(&fetch.query_params());
+            .query(&fetch.to_query_params());
 
         if let Some(query) = &fetch.query {
             match query {
@@ -180,7 +180,7 @@ impl Client {
         let download_request = self
             .http
             .get(photo.file_url())
-            .query(&download.query_params());
+            .query(&download.to_query_params());
 
         let response = Self::send_request(download_request).await?;
         let data = response.bytes().await.map_err(|_| Error::InvalidResponse)?;
