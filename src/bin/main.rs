@@ -11,8 +11,7 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinSet;
 
-mod unsplash;
-use unsplash::{Client, Download, Fetch, Photo};
+use backdrop::{Client, Download, Fetch, Photo};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Config {
@@ -40,7 +39,7 @@ async fn download_photos(config: &Config) -> Result<()> {
 
     let photos = client.fetch_photos(&config.fetch).await?;
 
-    let mut tasks = JoinSet::<unsplash::Result<(Photo, Bytes)>>::new();
+    let mut tasks = JoinSet::<backdrop::Result<(Photo, Bytes)>>::new();
     for photo in photos {
         let client = client.clone();
         let download = config.download.clone();
@@ -116,7 +115,7 @@ fn setup<P: AsRef<Path>>(path: P) -> io::Result<()> {
             env_path.display()
         );
 
-        fs::copy(".env.example", &env_path)?;
+        fs::copy("../../.env.example", &env_path)?;
     }
 
     dotenvy::from_path(env_path).map_err(|err| match err {
