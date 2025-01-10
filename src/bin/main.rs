@@ -6,12 +6,23 @@ use std::{
     time::UNIX_EPOCH,
 };
 
-use anyhow::Result;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tokio::task::JoinSet;
 
-use backdrop::{Client, Download, Fetch, Photo};
+use backdrop::{unsplash, Client, Download, Fetch, Photo};
+
+#[derive(Debug, Error)]
+enum Error {
+    #[error("{0}")]
+    Io(#[from] io::Error),
+
+    #[error("{0}")]
+    Unsplash(#[from] unsplash::Error),
+}
+
+type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Config {
@@ -101,14 +112,14 @@ fn delete_old_photos(config: &Config) -> io::Result<()> {
     Ok(())
 }
 
-fn setup<P: AsRef<Path>>(path: P) -> io::Result<()> {
-    let path = path.as_ref();
+fn configure<P: AsRef<Path>>(config_folder: P) -> Result<Config> {
+    let config_folder = config_folder.as_ref();
 
-    if !path.exists() {
-        fs::create_dir_all(&path)?;
+    if !config_folder.exists() {
+        fs::create_dir_all(&config_folder)?;
     }
 
-    let env_path = path.join(".env");
+    let env_path = config_folder.join(".env");
     if !env_path.exists() {
         println!(
             "You must set the Unsplash Access Key in {}",
@@ -124,18 +135,13 @@ fn setup<P: AsRef<Path>>(path: P) -> io::Result<()> {
         _ => unreachable!(),
     })?;
 
-    Ok(())
-}
-
-fn configure<P: AsRef<Path>>(path: P) -> io::Result<Config> {
-    let config_path = path.as_ref().join("config.json");
-
+    let config_path = config_folder.join("config.json");
     let config = match File::open(&config_path) {
         Ok(mut file) => {
             let mut contents = String::new();
             file.read_to_string(&mut contents)?;
 
-            serde_json::from_str(&contents)?
+            serde_json::from_str(&contents).map_err(|err| Into::<io::Error>::into(err))?
         }
 
         Err(_) => {
@@ -145,7 +151,8 @@ fn configure<P: AsRef<Path>>(path: P) -> io::Result<Config> {
             );
 
             let config = Config::default();
-            let content = serde_json::to_string_pretty(&config)?;
+            let content = serde_json::to_string_pretty(&config)
+                .map_err(|err| Into::<io::Error>::into(err))?;
 
             let mut file = File::create(&config_path)?;
             file.write_all(content.as_bytes())?;
@@ -161,7 +168,6 @@ fn configure<P: AsRef<Path>>(path: P) -> io::Result<Config> {
 async fn main() -> Result<()> {
     let path = dirs::config_dir().unwrap().join("Backdrop");
 
-    setup(&path)?;
     let config = configure(&path)?;
 
     download_photos(&config).await?;
