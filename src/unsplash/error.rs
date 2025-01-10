@@ -15,3 +15,5 @@ pub enum Error {
     #[error("HTTP error {0}")]
     Status(StatusCode),
 }
+
+pub type Result<T> = core::result::Result<T, Error>;

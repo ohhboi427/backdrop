@@ -104,7 +104,7 @@ fn delete_old_photos(config: &Config) -> io::Result<()> {
     Ok(())
 }
 
-fn setup<P: AsRef<Path>>(path: P) -> Result<()> {
+fn setup<P: AsRef<Path>>(path: P) -> io::Result<()> {
     let path = path.as_ref();
 
     if !path.exists() {
@@ -121,12 +121,15 @@ fn setup<P: AsRef<Path>>(path: P) -> Result<()> {
         fs::copy(".env.example", &env_path)?;
     }
 
-    dotenvy::from_path(env_path)?;
+    dotenvy::from_path(env_path).map_err(|err| match err {
+        dotenvy::Error::Io(err) => err,
+        _ => unreachable!(),
+    })?;
 
     Ok(())
 }
 
-fn configure<P: AsRef<Path>>(path: P) -> Result<Config> {
+fn configure<P: AsRef<Path>>(path: P) -> io::Result<Config> {
     let config_path = path.as_ref().join("config.json");
 
     let config = if let Ok(mut file) = File::open(&config_path) {

@@ -10,10 +10,7 @@ pub use models::Photo;
 use models::Topic;
 
 mod error;
-pub use error::Error;
-
-mod result;
-pub use result::Result;
+pub use error::{Error, Result};
 
 macro_rules! unsplash_api {
     ($end_point:expr) => {
