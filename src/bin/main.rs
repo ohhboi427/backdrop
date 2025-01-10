@@ -1,7 +1,6 @@
 use std::{
     collections::VecDeque,
-    fs::{self, File},
-    io::{self, Read, Write},
+    fs, io,
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
@@ -20,6 +19,9 @@ enum Error {
 
     #[error("{0}")]
     Unsplash(#[from] unsplash::Error),
+
+    #[error("A default configuration file has been created, please review it before proceeding")]
+    RequiresConfigure,
 }
 
 type Result<T> = core::result::Result<T, Error>;
@@ -70,8 +72,7 @@ async fn download_photos(config: &Config) -> Result<()> {
 
         let path = config.folder.join(format!("{}.png", photo.id()));
 
-        let mut file = File::create(path)?;
-        file.write_all(&data)?
+        fs::write(&path, &data)?;
     }
 
     Ok(())
@@ -120,13 +121,23 @@ fn configure<P: AsRef<Path>>(config_folder: P) -> Result<Config> {
     }
 
     let env_path = config_folder.join(".env");
-    if !env_path.exists() {
-        println!(
-            "You must set the Unsplash Access Key in {}",
-            env_path.display()
-        );
+    let config_path = config_folder.join("config.json");
+    let requires_config = !env_path.exists() || !config_path.exists();
 
-        fs::copy(".env.example", &env_path)?;
+    if requires_config {
+        if !env_path.exists() {
+            fs::copy(".env.example", &env_path)?;
+        }
+
+        if !config_path.exists() {
+            let config = Config::default();
+            let content = serde_json::to_string_pretty(&config)
+                .map_err(|err| Into::<io::Error>::into(err))?;
+
+            fs::write(&config_path, &content)?;
+        }
+
+        return Err(Error::RequiresConfigure);
     }
 
     dotenvy::from_path(env_path).map_err(|err| match err {
@@ -135,30 +146,10 @@ fn configure<P: AsRef<Path>>(config_folder: P) -> Result<Config> {
         _ => unreachable!(),
     })?;
 
-    let config_path = config_folder.join("config.json");
-    let config = match File::open(&config_path) {
-        Ok(mut file) => {
-            let mut contents = String::new();
-            file.read_to_string(&mut contents)?;
+    let config = {
+        let content = fs::read_to_string(&config_path)?;
 
-            serde_json::from_str(&contents).map_err(|err| Into::<io::Error>::into(err))?
-        }
-
-        Err(_) => {
-            println!(
-                "You can change the default options for fetching and downloading photos in {}",
-                config_path.display()
-            );
-
-            let config = Config::default();
-            let content = serde_json::to_string_pretty(&config)
-                .map_err(|err| Into::<io::Error>::into(err))?;
-
-            let mut file = File::create(&config_path)?;
-            file.write_all(content.as_bytes())?;
-
-            config
-        }
+        serde_json::from_str(&content).map_err(|err| Into::<io::Error>::into(err))?
     };
 
     Ok(config)
