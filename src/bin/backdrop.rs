@@ -11,6 +11,7 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::task::JoinSet;
+use windows::Win32::System::Console::{AttachConsole, FreeConsole, ATTACH_PARENT_PROCESS};
 
 use backdrop::{unsplash, Client, Download, Fetch, Photo};
 
@@ -159,6 +160,13 @@ fn configure<P: AsRef<Path>>(config_folder: P) -> Result<Config> {
 
 #[tokio::main]
 async fn main() {
+    #[cfg(windows)]
+    unsafe {
+        if AttachConsole(ATTACH_PARENT_PROCESS).is_err() {
+            FreeConsole().unwrap();
+        }
+    }
+
     async fn run() -> Result<()> {
         let path = dirs::config_dir().unwrap().join("Backdrop");
 
