@@ -8,6 +8,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 struct AuthResponse {
     session_id: Uuid,
+    auth_url: Url,
 }
 
 #[tokio::main]
@@ -16,6 +17,8 @@ async fn main() -> anyhow::Result<()> {
 
     let client = Client::new();
     let auth_response: AuthResponse = client.post(auth_url).send().await?.json().await?;
+
+    webbrowser::open(auth_response.auth_url.as_str())?;
 
     let token_url = Url::parse_with_params(
         "http://localhost:8000/token",

@@ -37,6 +37,7 @@ impl IntoResponse for AuthError {
 #[derive(Debug, Serialize, Deserialize)]
 struct AuthResponse {
     session_id: Uuid,
+    auth_url: Url,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,8 +57,7 @@ struct AppState {
 
 async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let session_id = Uuid::new_v4();
-
-    let url = Url::parse_with_params(
+    let auth_url = Url::parse_with_params(
         UNSPLASH_AUTH_URL,
         [
             ("client_id", state.access_key.as_str()),
@@ -69,11 +69,12 @@ async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     )
     .unwrap();
 
-    let _ = webbrowser::open(url.as_str());
-
     state.sessions.write().await.insert(session_id, None);
 
-    Json(AuthResponse { session_id })
+    Json(AuthResponse {
+        session_id,
+        auth_url,
+    })
 }
 
 async fn exchange(
