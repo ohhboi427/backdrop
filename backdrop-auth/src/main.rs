@@ -1,16 +1,38 @@
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::RwLock;
 use url::Url;
 use uuid::Uuid;
 
 const UNSPLASH_AUTH_URL: &'static str = "https://unsplash.com/oauth/authorize";
 const UNSPLASH_TOKEN_URL: &'static str = "https://unsplash.com/oauth/token";
+
+#[derive(Debug, Error)]
+enum AuthError {
+    #[error("Invalid session identifier")]
+    InvalidSession,
+    #[error("Missing query parameter")]
+    MissingParam,
+    #[error("Token is not ready")]
+    TokenNotReady,
+}
+
+impl IntoResponse for AuthError {
+    fn into_response(self) -> Response {
+        match self {
+            AuthError::InvalidSession => StatusCode::UNAUTHORIZED,
+            AuthError::MissingParam => StatusCode::BAD_REQUEST,
+            AuthError::TokenNotReady => StatusCode::NOT_FOUND,
+        }
+        .into_response()
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AuthResponse {
@@ -51,21 +73,22 @@ async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 
     state.sessions.write().await.insert(session_id, None);
 
-    (StatusCode::OK, Json(AuthResponse { session_id }))
+    Json(AuthResponse { session_id })
 }
 
 async fn exchange(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AuthError> {
     use reqwest::Client;
     use reqwest::header::{HeaderValue, USER_AGENT};
 
-    let code = params.get("code").unwrap();
-    let session_id = Uuid::parse_str(params.get("state").unwrap()).unwrap();
+    let code = params.get("code").ok_or(AuthError::MissingParam)?;
+    let session_id = Uuid::parse_str(params.get("state").ok_or(AuthError::MissingParam)?)
+        .map_err(|_| AuthError::MissingParam)?;
 
     if let None = state.sessions.read().await.get(&session_id) {
-        return StatusCode::NOT_FOUND;
+        return Err(AuthError::InvalidSession);
     }
 
     let url = Url::parse_with_params(
@@ -97,13 +120,13 @@ async fn exchange(
         .await
         .insert(session_id, Some(response.access_token));
 
-    StatusCode::OK
+    Ok(StatusCode::OK)
 }
 
 async fn token(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AuthError> {
     let session_id = Uuid::parse_str(params.get("state").unwrap()).unwrap();
 
     let mut sessions = state.sessions.write().await;
@@ -111,10 +134,10 @@ async fn token(
         Some(Some(_)) => {
             let token = sessions.remove(&session_id).unwrap().unwrap();
 
-            (StatusCode::OK, Json(token))
+            Ok(Json(token))
         }
-        Some(None) => (StatusCode::NOT_FOUND, Json(Default::default())),
-        None => (StatusCode::NOT_FOUND, Json(Default::default())),
+        Some(None) => Err(AuthError::TokenNotReady),
+        None => Err(AuthError::InvalidSession),
     }
 }
 
