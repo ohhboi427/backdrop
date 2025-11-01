@@ -1,15 +1,3 @@
-[package]
-name = "backdrop"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-bytes = "1.9.0"
-dirs = "5.0.1"
-dotenvy = "0.15.7"
-reqwest = { version = "0.12.12", features = ["json"] }
-serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.135"
-thiserror = "2.0.9"
-tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"] }
-windows = { version = "0.59.0", features = ["Win32_UI_WindowsAndMessaging", "Win32_System_Console"] }
+[workspace]
+resolver = "3"
+members = ["backdrop-auth", "backdrop-cli", "unsplash-api"]
