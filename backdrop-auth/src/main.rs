@@ -100,9 +100,27 @@ async fn exchange(
     StatusCode::OK
 }
 
+async fn token(
+    Query(params): Query<HashMap<String, String>>,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let session_id = Uuid::parse_str(params.get("state").unwrap()).unwrap();
+
+    let mut sessions = state.sessions.write().await;
+    match sessions.get(&session_id) {
+        Some(Some(_)) => {
+            let token = sessions.remove(&session_id).unwrap().unwrap();
+
+            (StatusCode::OK, Json(token))
+        }
+        Some(None) => (StatusCode::NOT_FOUND, Json(Default::default())),
+        None => (StatusCode::NOT_FOUND, Json(Default::default())),
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use axum::routing::{Router, get};
+    use axum::routing::{Router, get, post};
     use tokio::net::TcpListener;
 
     let _ = dotenvy::dotenv();
@@ -114,8 +132,9 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let app = Router::new()
-        .route("/auth", get(auth))
+        .route("/auth", post(auth))
         .route("/exchange", get(exchange))
+        .route("/token", get(token))
         .with_state(config);
 
     let listener = TcpListener::bind("0.0.0.0:8000").await?;
