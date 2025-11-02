@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
-use unsplash_api::auth::AuthToken;
 use url::Url;
 use uuid::Uuid;
 
@@ -54,7 +53,7 @@ struct ExchangeResponse {
 
 #[derive(Debug)]
 struct AppState {
-    sessions: RwLock<HashMap<Uuid, Option<AuthToken>>>,
+    sessions: RwLock<HashMap<Uuid, Option<ExchangeResponse>>>,
     access_key: String,
     secret_key: String,
 }
@@ -119,7 +118,7 @@ async fn exchange(
     .unwrap();
 
     let client = Client::new();
-    let response: ExchangeResponse = client
+    let response = client
         .post(url)
         .header(USER_AGENT, HeaderValue::from_static("Backdrop/2.0"))
         .send()
@@ -133,7 +132,7 @@ async fn exchange(
         .sessions
         .write()
         .await
-        .insert(session_id, Some(AuthToken::Bearer(response.access_token)));
+        .insert(session_id, Some(response));
 
     Ok(StatusCode::OK)
 }
@@ -142,15 +141,17 @@ async fn token(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, Error> {
+    use unsplash_api::auth::AuthToken;
+
     let session_id = Uuid::parse_str(params.get("state").ok_or(Error::MissingParam)?)
         .map_err(|_| Error::InvalidResponse)?;
 
     let mut sessions = state.sessions.write().await;
     match sessions.get(&session_id) {
         Some(Some(_)) => {
-            let token = sessions.remove(&session_id).unwrap().unwrap();
+            let response = sessions.remove(&session_id).unwrap().unwrap();
 
-            Ok(Json(token))
+            Ok(Json(AuthToken::Bearer(response.access_token)))
         }
         Some(None) => Err(Error::TokenNotReady),
         None => Err(Error::InvalidSession),
