@@ -13,3 +13,12 @@ pub enum AuthToken {
     Bearer(String),
     ClientId(String),
 }
+
+impl std::fmt::Display for AuthToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            AuthToken::Bearer(x) => write!(f, "Bearer {}", x),
+            AuthToken::ClientId(x) => write!(f, "Client-ID {}", x),
+        }
+    }
+}

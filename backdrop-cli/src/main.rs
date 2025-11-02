@@ -36,7 +36,10 @@ async fn main() -> anyhow::Result<()> {
     })
     .await?;
 
-    println!("{:?}", token);
+    match token {
+        Some(token) => println!("{}", token),
+        None => {}
+    }
 
     Ok(())
 }
