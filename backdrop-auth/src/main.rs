@@ -1,12 +1,13 @@
 use axum::Json;
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
+use unsplash_api::auth::AuthToken;
 use url::Url;
 use uuid::Uuid;
 
@@ -38,12 +39,6 @@ impl IntoResponse for AuthError {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AuthResponse {
-    session_id: Uuid,
-    auth_url: Url,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 struct ExchangeResponse {
     access_token: String,
     token_type: String,
@@ -53,12 +48,14 @@ struct ExchangeResponse {
 
 #[derive(Debug)]
 struct AppState {
-    sessions: RwLock<HashMap<Uuid, Option<String>>>,
+    sessions: RwLock<HashMap<Uuid, Option<AuthToken>>>,
     access_key: String,
     secret_key: String,
 }
 
 async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    use unsplash_api::auth::AuthResponse;
+
     let session_id = Uuid::new_v4();
     let auth_url = Url::parse_with_params(
         UNSPLASH_AUTH_URL,
@@ -84,8 +81,8 @@ async fn exchange(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, AuthError> {
+    use http::header::{HeaderValue, USER_AGENT};
     use reqwest::Client;
-    use reqwest::header::{HeaderValue, USER_AGENT};
 
     let session_id = Uuid::parse_str(params.get("state").ok_or(AuthError::MissingParam)?)
         .map_err(|_| AuthError::MissingParam)?;
@@ -130,7 +127,7 @@ async fn exchange(
         .sessions
         .write()
         .await
-        .insert(session_id, Some(response.access_token));
+        .insert(session_id, Some(AuthToken::Bearer(response.access_token)));
 
     Ok(StatusCode::OK)
 }

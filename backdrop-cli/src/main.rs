@@ -1,17 +1,10 @@
-use serde::{Deserialize, Serialize};
-use url::Url;
-use uuid::Uuid;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct AuthResponse {
-    session_id: Uuid,
-    auth_url: Url,
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use reqwest::{Client, StatusCode};
+    use http::StatusCode;
+    use reqwest::Client;
     use std::time::Duration;
+    use unsplash_api::auth::{AuthResponse, AuthToken};
+    use url::Url;
 
     let auth_url = Url::parse("http://localhost:8000/auth")?;
 
@@ -31,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
             let status = response.status();
 
             if status.is_success() {
-                return Some(response.json::<String>().await.unwrap());
+                return Some(response.json::<AuthToken>().await.unwrap());
             }
 
             if status == StatusCode::NOT_FOUND {
