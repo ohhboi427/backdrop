@@ -1,4 +1,5 @@
 use thiserror::Error;
+use unsplash_api::auth::AuthToken;
 
 #[derive(Debug, Error)]
 enum Error {
@@ -10,15 +11,14 @@ enum Error {
     NetworkError,
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn auth() -> Result<AuthToken, Error> {
     use http::StatusCode;
     use reqwest::Client;
     use tokio::time::Duration;
-    use unsplash_api::auth::{AuthResponse, AuthToken};
+    use unsplash_api::auth::AuthResponse;
     use url::Url;
 
-    let auth_url = Url::parse("http://localhost:8000/auth")?;
+    let auth_url = Url::parse("http://localhost:8000/auth").unwrap();
 
     let client = Client::new();
     let auth_response: AuthResponse = client
@@ -30,12 +30,13 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|_| Error::InvalidResponse)?;
 
-    webbrowser::open(auth_response.auth_url.as_str())?;
+    webbrowser::open(auth_response.auth_url.as_str()).unwrap();
 
     let token_url = Url::parse_with_params(
         "http://localhost:8000/token",
         [("state", &auth_response.session_id.to_string())],
-    )?;
+    )
+    .unwrap();
 
     let token = tokio::time::timeout(Duration::from_secs(30), async {
         loop {
@@ -61,7 +62,15 @@ async fn main() -> anyhow::Result<()> {
             return Err(Error::AuthFailed);
         }
     })
-    .await??;
+    .await
+    .map_err(|_| Error::AuthFailed)??;
+
+    Ok(token)
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let token = auth().await?;
 
     println!("{}", token);
 
