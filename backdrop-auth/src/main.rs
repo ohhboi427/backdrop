@@ -15,6 +15,8 @@ const UNSPLASH_TOKEN_URL: &'static str = "https://unsplash.com/oauth/token";
 
 #[derive(Debug, Error)]
 enum AuthError {
+    #[error("Authentication failed")]
+    AuthFailed,
     #[error("Invalid session identifier")]
     InvalidSession,
     #[error("Missing query parameter")]
@@ -26,6 +28,7 @@ enum AuthError {
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         match self {
+            AuthError::AuthFailed => StatusCode::UNAUTHORIZED,
             AuthError::InvalidSession => StatusCode::UNAUTHORIZED,
             AuthError::MissingParam => StatusCode::BAD_REQUEST,
             AuthError::TokenNotReady => StatusCode::NOT_FOUND,
@@ -84,13 +87,21 @@ async fn exchange(
     use reqwest::Client;
     use reqwest::header::{HeaderValue, USER_AGENT};
 
-    let code = params.get("code").ok_or(AuthError::MissingParam)?;
     let session_id = Uuid::parse_str(params.get("state").ok_or(AuthError::MissingParam)?)
         .map_err(|_| AuthError::MissingParam)?;
 
     if let None = state.sessions.read().await.get(&session_id) {
         return Err(AuthError::InvalidSession);
     }
+
+    let code = match params.get("code").ok_or(AuthError::AuthFailed) {
+        Ok(code) => code,
+        Err(err) => {
+            state.sessions.write().await.remove(&session_id);
+
+            return Err(err);
+        }
+    };
 
     let url = Url::parse_with_params(
         UNSPLASH_TOKEN_URL,

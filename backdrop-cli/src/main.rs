@@ -1,7 +1,4 @@
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
-use tokio::time::sleep;
 use url::Url;
 use uuid::Uuid;
 
@@ -13,6 +10,9 @@ struct AuthResponse {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use reqwest::{Client, StatusCode};
+    use std::time::Duration;
+
     let auth_url = Url::parse("http://localhost:8000/auth")?;
 
     let client = Client::new();
@@ -25,11 +25,25 @@ async fn main() -> anyhow::Result<()> {
         [("state", &auth_response.session_id.to_string())],
     )?;
 
-    sleep(Duration::from_secs(30)).await;
+    let token = tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            let response = client.get(token_url.as_str()).send().await.unwrap();
+            let status = response.status();
 
-    let token: String = client.get(token_url).send().await?.json().await?;
+            if status.is_success() {
+                return Some(response.json::<String>().await.unwrap());
+            }
 
-    println!("{}", token);
+            if status == StatusCode::NOT_FOUND {
+                continue;
+            }
+
+            return None;
+        }
+    })
+    .await?;
+
+    println!("{:?}", token);
 
     Ok(())
 }
