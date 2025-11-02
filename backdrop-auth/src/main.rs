@@ -15,24 +15,30 @@ const UNSPLASH_AUTH_URL: &'static str = "https://unsplash.com/oauth/authorize";
 const UNSPLASH_TOKEN_URL: &'static str = "https://unsplash.com/oauth/token";
 
 #[derive(Debug, Error)]
-enum AuthError {
+enum Error {
     #[error("Authentication failed")]
     AuthFailed,
+    #[error("Invalid or unexpected response")]
+    InvalidResponse,
     #[error("Invalid session identifier")]
     InvalidSession,
     #[error("Missing query parameter")]
     MissingParam,
+    #[error("Network error")]
+    NetworkError,
     #[error("Token is not ready")]
     TokenNotReady,
 }
 
-impl IntoResponse for AuthError {
+impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
-            AuthError::AuthFailed => StatusCode::UNAUTHORIZED,
-            AuthError::InvalidSession => StatusCode::UNAUTHORIZED,
-            AuthError::MissingParam => StatusCode::BAD_REQUEST,
-            AuthError::TokenNotReady => StatusCode::NOT_FOUND,
+            Error::AuthFailed => StatusCode::UNAUTHORIZED,
+            Error::InvalidResponse => StatusCode::BAD_REQUEST,
+            Error::InvalidSession => StatusCode::UNAUTHORIZED,
+            Error::MissingParam => StatusCode::BAD_REQUEST,
+            Error::NetworkError => StatusCode::BAD_GATEWAY,
+            Error::TokenNotReady => StatusCode::NOT_FOUND,
         }
         .into_response()
     }
@@ -80,18 +86,18 @@ async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 async fn exchange(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, AuthError> {
+) -> Result<impl IntoResponse, Error> {
     use http::header::{HeaderValue, USER_AGENT};
     use reqwest::Client;
 
-    let session_id = Uuid::parse_str(params.get("state").ok_or(AuthError::MissingParam)?)
-        .map_err(|_| AuthError::MissingParam)?;
+    let session_id = Uuid::parse_str(params.get("state").ok_or(Error::MissingParam)?)
+        .map_err(|_| Error::InvalidResponse)?;
 
     if let None = state.sessions.read().await.get(&session_id) {
-        return Err(AuthError::InvalidSession);
+        return Err(Error::InvalidSession);
     }
 
-    let code = match params.get("code").ok_or(AuthError::AuthFailed) {
+    let code = match params.get("code").ok_or(Error::AuthFailed) {
         Ok(code) => code,
         Err(err) => {
             state.sessions.write().await.remove(&session_id);
@@ -115,13 +121,13 @@ async fn exchange(
     let client = Client::new();
     let response: ExchangeResponse = client
         .post(url)
-        .header(USER_AGENT, HeaderValue::from_str("Backdrop/2.0").unwrap())
+        .header(USER_AGENT, HeaderValue::from_static("Backdrop/2.0"))
         .send()
         .await
-        .unwrap()
+        .map_err(|_| Error::NetworkError)?
         .json()
         .await
-        .unwrap();
+        .map_err(|_| Error::InvalidResponse)?;
 
     state
         .sessions
@@ -135,8 +141,9 @@ async fn exchange(
 async fn token(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, AuthError> {
-    let session_id = Uuid::parse_str(params.get("state").unwrap()).unwrap();
+) -> Result<impl IntoResponse, Error> {
+    let session_id = Uuid::parse_str(params.get("state").ok_or(Error::MissingParam)?)
+        .map_err(|_| Error::InvalidResponse)?;
 
     let mut sessions = state.sessions.write().await;
     match sessions.get(&session_id) {
@@ -145,8 +152,8 @@ async fn token(
 
             Ok(Json(token))
         }
-        Some(None) => Err(AuthError::TokenNotReady),
-        None => Err(AuthError::InvalidSession),
+        Some(None) => Err(Error::TokenNotReady),
+        None => Err(Error::InvalidSession),
     }
 }
 

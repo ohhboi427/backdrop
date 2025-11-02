@@ -9,6 +9,7 @@ anyhow = "1.0.100"
 http = "1.3.1"
 reqwest = { version = "0.12.24", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
+thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["full"] }
 url = "2.5.7"
 webbrowser = "1.0.6"
