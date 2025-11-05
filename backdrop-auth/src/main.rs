@@ -54,6 +54,7 @@ struct ExchangeResponse {
 #[derive(Debug)]
 struct AppState {
     sessions: RwLock<HashMap<Uuid, Option<ExchangeResponse>>>,
+    server_url: Url,
     access_key: String,
     secret_key: String,
 }
@@ -62,11 +63,13 @@ async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     use unsplash_api::auth::AuthResponse;
 
     let session_id = Uuid::new_v4();
+
+    let redirect_url = state.server_url.join("/exchange").unwrap();
     let auth_url = Url::parse_with_params(
         UNSPLASH_AUTH_URL,
         [
             ("client_id", state.access_key.as_str()),
-            ("redirect_uri", "http://localhost:8000/exchange"),
+            ("redirect_uri", redirect_url.as_str()),
             ("response_type", "code"),
             ("scope", "public"),
             ("state", session_id.to_string().as_str()),
@@ -105,12 +108,13 @@ async fn exchange(
         }
     };
 
-    let url = Url::parse_with_params(
+    let redirect_url = state.server_url.join("/exchange").unwrap();
+    let token_url = Url::parse_with_params(
         UNSPLASH_TOKEN_URL,
         [
             ("client_id", state.access_key.as_str()),
             ("client_secret", state.secret_key.as_str()),
-            ("redirect_uri", "http://localhost:8000/exchange"),
+            ("redirect_uri", redirect_url.as_str()),
             ("code", code.as_str()),
             ("grant_type", "authorization_code"),
         ],
@@ -119,7 +123,7 @@ async fn exchange(
 
     let client = Client::new();
     let response = client
-        .post(url)
+        .post(token_url)
         .header(USER_AGENT, HeaderValue::from_static("Backdrop/2.0"))
         .send()
         .await
@@ -167,6 +171,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Arc::new(AppState {
         sessions: RwLock::new(HashMap::new()),
+        server_url: Url::parse(std::env::var("SERVER_URL")?.as_str())?,
         access_key: std::env::var("UNSPLASH_ACCESS_KEY")?,
         secret_key: std::env::var("UNSPLASH_SECRET_KEY")?,
     });
