@@ -75,27 +75,31 @@ pub async fn obtain_auth_token() -> Result<AuthToken, Error> {
     Ok(token)
 }
 
-pub async fn obtain_and_store_auth_token() -> anyhow::Result<AuthToken> {
+pub async fn obtain_and_store_auth_token() -> Result<AuthToken, Error> {
     let token = obtain_auth_token().await?;
 
-    let entry = Entry::new(KEY_SERVICE, KEY_NAME)?;
-    entry.set_password(token.as_ref())?;
+    let entry = Entry::new(KEY_SERVICE, KEY_NAME).unwrap();
+    entry
+        .set_password(token.as_ref())
+        .map_err(|_| Error::TokenStorageFailed)?;
 
     Ok(token)
 }
 
-pub fn get_stored_auth_token() -> anyhow::Result<Option<AuthToken>> {
-    let entry = Entry::new(KEY_SERVICE, KEY_NAME)?;
+pub fn get_stored_auth_token() -> Result<Option<AuthToken>, Error> {
+    let entry = Entry::new(KEY_SERVICE, KEY_NAME).unwrap();
     match entry.get_password() {
         Ok(token) => Ok(Some(AuthToken::Bearer(token))),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.into()),
+        Err(_) => Err(Error::TokenStorageFailed),
     }
 }
 
-pub fn delete_stored_auth_token() -> anyhow::Result<()> {
-    let entry = Entry::new(KEY_SERVICE, KEY_NAME)?;
-    entry.delete_credential()?;
+pub fn delete_stored_auth_token() -> Result<(), Error> {
+    let entry = Entry::new(KEY_SERVICE, KEY_NAME).unwrap();
+    entry
+        .delete_credential()
+        .map_err(|_| Error::TokenStorageFailed)?;
 
     Ok(())
 }
