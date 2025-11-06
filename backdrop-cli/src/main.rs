@@ -1,6 +1,8 @@
 use thiserror::Error;
 use unsplash_api::auth::AuthToken;
 
+const SERVER_URL: &'static str = "http://localhost:8000/";
+
 #[derive(Debug, Error)]
 enum Error {
     #[error("Authentication failed")]
@@ -18,7 +20,9 @@ async fn auth() -> Result<AuthToken, Error> {
     use unsplash_api::auth::AuthResponse;
     use url::Url;
 
-    let auth_url = Url::parse("http://localhost:8000/auth").unwrap();
+    let server_url = Url::parse(SERVER_URL).unwrap();
+
+    let auth_url = server_url.join("auth").unwrap();
 
     let client = Client::new();
     let auth_response: AuthResponse = client
@@ -32,11 +36,10 @@ async fn auth() -> Result<AuthToken, Error> {
 
     webbrowser::open(auth_response.auth_url.as_str()).unwrap();
 
-    let token_url = Url::parse_with_params(
-        "http://localhost:8000/token",
-        [("state", &auth_response.session_id.to_string())],
-    )
-    .unwrap();
+    let mut token_url = server_url.join("token").unwrap();
+    token_url
+        .query_pairs_mut()
+        .append_pair("state", auth_response.session_id.to_string().as_str());
 
     let token = tokio::time::timeout(Duration::from_secs(30), async {
         loop {

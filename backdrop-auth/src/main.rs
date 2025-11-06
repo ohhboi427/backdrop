@@ -109,22 +109,18 @@ async fn exchange(
     };
 
     let redirect_url = state.server_url.join("/exchange").unwrap();
-    let token_url = Url::parse_with_params(
-        UNSPLASH_TOKEN_URL,
-        [
+
+    let client = Client::new();
+    let response = client
+        .post(UNSPLASH_TOKEN_URL)
+        .header(USER_AGENT, HeaderValue::from_static("Backdrop/2.0"))
+        .form(&[
             ("client_id", state.access_key.as_str()),
             ("client_secret", state.secret_key.as_str()),
             ("redirect_uri", redirect_url.as_str()),
             ("code", code.as_str()),
             ("grant_type", "authorization_code"),
-        ],
-    )
-    .unwrap();
-
-    let client = Client::new();
-    let response = client
-        .post(token_url)
-        .header(USER_AGENT, HeaderValue::from_static("Backdrop/2.0"))
+        ])
         .send()
         .await
         .map_err(|_| Error::NetworkError)?
