@@ -1,3 +1,4 @@
+use clap::{Parser, Subcommand};
 use thiserror::Error;
 use unsplash_api::auth::AuthToken;
 
@@ -11,6 +12,17 @@ enum Error {
     InvalidResponse,
     #[error("Network error")]
     NetworkError,
+}
+
+#[derive(Parser)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Auth,
 }
 
 async fn auth() -> Result<AuthToken, Error> {
@@ -81,19 +93,29 @@ async fn main() -> anyhow::Result<()> {
     use keyring::Entry;
     use unsplash_api::client::Client;
 
-    let entry = Entry::new("Backdrop", "bearer_token")?;
-    let token = match entry.get_password() {
-        Ok(token) => AuthToken::Bearer(token),
-        Err(keyring::Error::NoEntry) => {
-            let token = auth().await?;
+    let token_entry = Entry::new("Backdrop", "bearer_token")?;
 
-            entry.set_password(token.to_string().as_str())?;
+    let cli = Cli::parse();
+    let token = match cli.command {
+        Some(Commands::Auth) => {
+            let token = auth().await?;
+            token_entry.set_password(token.as_ref())?;
 
             token
         }
-        Err(e) => return Err(e.into()),
+        None => match token_entry.get_password() {
+            Ok(token) => AuthToken::Bearer(token),
+            Err(keyring::Error::NoEntry) => {
+                let token = auth().await?;
+                token_entry.set_password(token.as_ref())?;
+
+                token
+            }
+            Err(e) => return Err(e.into()),
+        },
     };
 
+    println!("{}", token);
     let _client = Client::new(&token);
 
     Ok(())

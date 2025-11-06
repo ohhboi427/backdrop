@@ -14,6 +14,15 @@ pub enum AuthToken {
     ClientId(String),
 }
 
+impl AsRef<str> for AuthToken {
+    fn as_ref(&self) -> &str {
+        match self {
+            AuthToken::Bearer(token) => token.as_str(),
+            AuthToken::ClientId(token) => token.as_str(),
+        }
+    }
+}
+
 impl std::fmt::Display for AuthToken {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
