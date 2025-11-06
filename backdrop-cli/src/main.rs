@@ -20,37 +20,26 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use crate::commands::auth::*;
-    use keyring::Entry;
-    use unsplash_api::auth::AuthToken;
+    use crate::commands::*;
     use unsplash_api::client::Client;
-
-    let token_entry = Entry::new("Backdrop", "bearer_token")?;
 
     let cli = Cli::parse();
     let token = match cli.command {
         Some(Commands::Auth {
             command: Some(AuthCommand::Remove),
         }) => {
-            token_entry.delete_credential()?;
+            delete_stored_auth_token()?;
 
             return Ok(());
         }
         Some(Commands::Auth { command: None }) => {
-            let token = obtain_auth_token().await?;
-            token_entry.set_password(token.as_ref())?;
+            obtain_and_store_auth_token().await?;
 
             return Ok(());
         }
-        None => match token_entry.get_password() {
-            Ok(token) => AuthToken::Bearer(token),
-            Err(keyring::Error::NoEntry) => {
-                let token = obtain_auth_token().await?;
-                token_entry.set_password(token.as_ref())?;
-
-                token
-            }
-            Err(e) => return Err(e.into()),
+        None => match get_stored_auth_token()? {
+            Some(token) => token,
+            None => obtain_and_store_auth_token().await?,
         },
     };
 
