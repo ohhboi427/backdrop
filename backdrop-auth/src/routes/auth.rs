@@ -1,11 +1,15 @@
 use crate::state::AppState;
-use axum::extract::State;
+use axum::extract::{Form, State};
 use axum::response::IntoResponse;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 const UNSPLASH_AUTH_URL: &'static str = "https://unsplash.com/oauth/authorize";
 
-pub async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+pub async fn auth(
+    State(state): State<Arc<AppState>>,
+    Form(params): Form<HashMap<String, String>>,
+) -> impl IntoResponse {
     use axum::Json;
     use std::time::Instant;
     use unsplash_api::auth::AuthResponse;
@@ -14,6 +18,8 @@ pub async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 
     let session_id = Uuid::new_v4();
 
+    let scope = params.get("scope").map_or("public", |scope| scope.as_str());
+
     let redirect_url = state.server_url.join("/exchange").unwrap();
     let auth_url = Url::parse_with_params(
         UNSPLASH_AUTH_URL,
@@ -21,7 +27,7 @@ pub async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
             ("client_id", state.access_key.as_str()),
             ("redirect_uri", redirect_url.as_str()),
             ("response_type", "code"),
-            ("scope", "public"),
+            ("scope", scope),
             ("state", session_id.to_string().as_str()),
         ],
     )

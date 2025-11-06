@@ -15,6 +15,7 @@ enum Error {
 
 async fn auth() -> Result<AuthToken, Error> {
     use http::StatusCode;
+    use http::header::{CONTENT_TYPE, HeaderValue};
     use reqwest::Client;
     use tokio::time::Duration;
     use unsplash_api::auth::AuthResponse;
@@ -27,6 +28,10 @@ async fn auth() -> Result<AuthToken, Error> {
     let client = Client::new();
     let auth_response: AuthResponse = client
         .post(auth_url)
+        .header(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/x-www-form-urlencoded"),
+        )
         .send()
         .await
         .map_err(|_| Error::NetworkError)?
