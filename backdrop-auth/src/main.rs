@@ -5,6 +5,7 @@ use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use url::Url;
@@ -48,12 +49,11 @@ struct ExchangeResponse {
     access_token: String,
     token_type: String,
     scope: String,
-    created_at: u64,
 }
 
 #[derive(Debug)]
 struct AppState {
-    sessions: RwLock<HashMap<Uuid, Option<ExchangeResponse>>>,
+    sessions: RwLock<HashMap<Uuid, (Option<ExchangeResponse>, Instant)>>,
     server_url: Url,
     access_key: String,
     secret_key: String,
@@ -77,7 +77,11 @@ async fn auth(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     )
     .unwrap();
 
-    state.sessions.write().await.insert(session_id, None);
+    state
+        .sessions
+        .write()
+        .await
+        .insert(session_id, (None, Instant::now()));
 
     Json(AuthResponse {
         session_id,
@@ -95,7 +99,7 @@ async fn exchange(
     let session_id = Uuid::parse_str(params.get("state").ok_or(Error::MissingParam)?)
         .map_err(|_| Error::InvalidResponse)?;
 
-    if let None = state.sessions.read().await.get(&session_id) {
+    if !state.sessions.read().await.contains_key(&session_id) {
         return Err(Error::InvalidSession);
     }
 
@@ -111,7 +115,7 @@ async fn exchange(
     let redirect_url = state.server_url.join("/exchange").unwrap();
 
     let client = Client::new();
-    let response = client
+    let response: ExchangeResponse = client
         .post(UNSPLASH_TOKEN_URL)
         .header(USER_AGENT, HeaderValue::from_static("Backdrop/2.0"))
         .form(&[
@@ -132,7 +136,10 @@ async fn exchange(
         .sessions
         .write()
         .await
-        .insert(session_id, Some(response));
+        .entry(session_id)
+        .and_modify(|(session, _)| {
+            session.replace(response);
+        });
 
     Ok(StatusCode::OK)
 }
@@ -148,13 +155,29 @@ async fn token(
 
     let mut sessions = state.sessions.write().await;
     match sessions.get(&session_id) {
-        Some(Some(_)) => {
-            let response = sessions.remove(&session_id).unwrap().unwrap();
+        Some((Some(_), _)) => {
+            let (response, _) = sessions.remove(&session_id).unwrap();
 
-            Ok(Json(AuthToken::Bearer(response.access_token)))
+            Ok(Json(AuthToken::Bearer(response.unwrap().access_token)))
         }
-        Some(None) => Err(Error::TokenNotReady),
+        Some((None, _)) => Err(Error::TokenNotReady),
         None => Err(Error::InvalidSession),
+    }
+}
+
+async fn purge(state: Arc<AppState>) {
+    use std::time::Duration;
+
+    let mut ticker = tokio::time::interval(Duration::from_secs(60));
+
+    loop {
+        state
+            .sessions
+            .write()
+            .await
+            .retain(|_, (_, created_at)| created_at.elapsed() < Duration::from_secs(300));
+
+        ticker.tick().await;
     }
 }
 
@@ -171,6 +194,8 @@ async fn main() -> anyhow::Result<()> {
         access_key: std::env::var("UNSPLASH_ACCESS_KEY")?,
         secret_key: std::env::var("UNSPLASH_SECRET_KEY")?,
     });
+
+    tokio::spawn(purge(Arc::clone(&config)));
 
     let app = Router::new()
         .route("/auth", post(auth))
