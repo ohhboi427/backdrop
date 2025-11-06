@@ -1,6 +1,7 @@
 mod commands;
 mod error;
 
+use crate::commands::auth::AuthCommand;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -11,12 +12,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Auth,
+    Auth {
+        #[clap(subcommand)]
+        command: Option<AuthCommand>,
+    },
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use crate::commands::*;
+    use crate::commands::auth::*;
     use keyring::Entry;
     use unsplash_api::auth::AuthToken;
     use unsplash_api::client::Client;
@@ -25,16 +29,23 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     let token = match cli.command {
-        Some(Commands::Auth) => {
-            let token = auth().await?;
+        Some(Commands::Auth {
+            command: Some(AuthCommand::Remove),
+        }) => {
+            token_entry.delete_credential()?;
+
+            return Ok(());
+        }
+        Some(Commands::Auth { command: None }) => {
+            let token = obtain_auth_token().await?;
             token_entry.set_password(token.as_ref())?;
 
-            token
+            return Ok(());
         }
         None => match token_entry.get_password() {
             Ok(token) => AuthToken::Bearer(token),
             Err(keyring::Error::NoEntry) => {
-                let token = auth().await?;
+                let token = obtain_auth_token().await?;
                 token_entry.set_password(token.as_ref())?;
 
                 token

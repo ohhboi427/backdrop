@@ -1,9 +1,15 @@
 use crate::error::Error;
+use clap::Subcommand;
 use unsplash_api::auth::AuthToken;
 
 const SERVER_URL: &'static str = "http://localhost:8000/";
 
-pub async fn auth() -> Result<AuthToken, Error> {
+#[derive(Subcommand)]
+pub enum AuthCommand {
+    Remove,
+}
+
+pub async fn obtain_auth_token() -> Result<AuthToken, Error> {
     use http::StatusCode;
     use http::header::{CONTENT_TYPE, HeaderValue};
     use reqwest::Client;
