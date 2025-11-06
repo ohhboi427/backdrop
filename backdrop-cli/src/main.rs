@@ -73,9 +73,10 @@ async fn auth() -> Result<AuthToken, Error> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let token = auth().await?;
+    use unsplash_api::client::Client;
 
-    println!("{}", token);
+    let token = auth().await?;
+    let _client = Client::new(&token);
 
     Ok(())
 }

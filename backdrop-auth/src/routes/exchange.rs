@@ -22,6 +22,7 @@ pub async fn exchange(
     use http::StatusCode;
     use http::header::{HeaderValue, USER_AGENT};
     use reqwest::Client;
+    use unsplash_api::client::USER_AGENT as BACKDROP_USER_AGENT;
     use uuid::Uuid;
 
     let session_id = Uuid::parse_str(params.get("state").ok_or(Error::MissingParam)?)
@@ -45,7 +46,7 @@ pub async fn exchange(
     let client = Client::new();
     let response: ExchangeResponse = client
         .post(UNSPLASH_TOKEN_URL)
-        .header(USER_AGENT, HeaderValue::from_static("Backdrop/2.0"))
+        .header(USER_AGENT, HeaderValue::from_static(BACKDROP_USER_AGENT))
         .form(&[
             ("client_id", state.access_key.as_str()),
             ("client_secret", state.secret_key.as_str()),
