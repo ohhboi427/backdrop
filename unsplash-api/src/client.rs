@@ -1,10 +1,13 @@
 use crate::auth::AuthToken;
 use reqwest::Client as HttpClient;
+use url::Url;
 
+pub const UNSPLASH_API_URL: &'static str = "https://api.unsplash.com/";
 pub const USER_AGENT: &'static str = concat!("Backdrop/", env!("CARGO_PKG_VERSION"));
 
 pub struct Client {
     client: HttpClient,
+    url: Url,
 }
 
 impl Client {
@@ -25,6 +28,8 @@ impl Client {
             .build()
             .unwrap();
 
-        Self { client }
+        let url = Url::parse(UNSPLASH_API_URL).unwrap();
+
+        Self { client, url }
     }
 }
