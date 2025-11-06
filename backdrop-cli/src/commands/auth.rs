@@ -4,6 +4,8 @@ use keyring::Entry;
 use unsplash_api::auth::AuthToken;
 
 const SERVER_URL: &'static str = "http://localhost:8000/";
+const KEY_SERVICE: &'static str = "Backdrop";
+const KEY_NAME: &'static str = "bearer_token";
 
 #[derive(Subcommand)]
 pub enum AuthCommand {
@@ -76,14 +78,14 @@ pub async fn obtain_auth_token() -> Result<AuthToken, Error> {
 pub async fn obtain_and_store_auth_token() -> anyhow::Result<AuthToken> {
     let token = obtain_auth_token().await?;
 
-    let entry = Entry::new("Backdrop", "bearer_token")?;
+    let entry = Entry::new(KEY_SERVICE, KEY_NAME)?;
     entry.set_password(token.as_ref())?;
 
     Ok(token)
 }
 
 pub fn get_stored_auth_token() -> anyhow::Result<Option<AuthToken>> {
-    let entry = Entry::new("Backdrop", "bearer_token")?;
+    let entry = Entry::new(KEY_SERVICE, KEY_NAME)?;
     match entry.get_password() {
         Ok(token) => Ok(Some(AuthToken::Bearer(token))),
         Err(keyring::Error::NoEntry) => Ok(None),
@@ -92,7 +94,7 @@ pub fn get_stored_auth_token() -> anyhow::Result<Option<AuthToken>> {
 }
 
 pub fn delete_stored_auth_token() -> anyhow::Result<()> {
-    let entry = Entry::new("Backdrop", "bearer_token")?;
+    let entry = Entry::new(KEY_SERVICE, KEY_NAME)?;
     entry.delete_credential()?;
 
     Ok(())
