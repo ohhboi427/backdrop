@@ -1,4 +1,4 @@
-mod auth;
+mod commands;
 mod error;
 
 use clap::{Parser, Subcommand};
@@ -16,7 +16,7 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use crate::auth::auth;
+    use crate::commands::*;
     use keyring::Entry;
     use unsplash_api::auth::AuthToken;
     use unsplash_api::client::Client;
