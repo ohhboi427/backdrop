@@ -73,9 +73,22 @@ async fn auth() -> Result<AuthToken, Error> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use keyring::Entry;
     use unsplash_api::client::Client;
 
-    let token = auth().await?;
+    let entry = Entry::new("Backdrop", "bearer_token")?;
+    let token = match entry.get_password() {
+        Ok(token) => AuthToken::Bearer(token),
+        Err(keyring::Error::NoEntry) => {
+            let token = auth().await?;
+
+            entry.set_password(token.to_string().as_str())?;
+
+            token
+        }
+        Err(e) => return Err(e.into()),
+    };
+
     let _client = Client::new(&token);
 
     Ok(())
