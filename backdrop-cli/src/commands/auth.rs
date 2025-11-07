@@ -9,7 +9,30 @@ const KEY_NAME: &'static str = "bearer_token";
 
 #[derive(Subcommand)]
 pub enum AuthCommand {
-    Remove,
+    Login,
+    Logout,
+}
+
+impl AuthCommand {
+    pub async fn run(self) -> Result<(), Error> {
+        match self {
+            AuthCommand::Login => {
+                obtain_and_store_auth_token().await?;
+            }
+
+            AuthCommand::Logout => {
+                delete_stored_auth_token()?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Default for AuthCommand {
+    fn default() -> Self {
+        AuthCommand::Login
+    }
 }
 
 pub async fn obtain_auth_token() -> Result<AuthToken, Error> {
@@ -92,6 +115,13 @@ pub fn get_stored_auth_token() -> Result<Option<AuthToken>, Error> {
         Ok(token) => Ok(Some(AuthToken::Bearer(token))),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(_) => Err(Error::TokenStorageFailed),
+    }
+}
+
+pub async fn ensure_auth_token() -> Result<AuthToken, Error> {
+    match get_stored_auth_token()? {
+        Some(token) => Ok(token),
+        None => obtain_and_store_auth_token().await,
     }
 }
 
