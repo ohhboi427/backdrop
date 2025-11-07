@@ -24,23 +24,25 @@ async fn main() -> anyhow::Result<()> {
     use unsplash_api::client::Client;
 
     let cli = Cli::parse();
-    let token = match cli.command {
-        Some(Commands::Auth {
-            command: Some(AuthCommand::Remove),
-        }) => {
-            delete_stored_auth_token()?;
 
-            return Ok(());
+    if let Some(command) = cli.command {
+        match command {
+            Commands::Auth {
+                command: Some(AuthCommand::Remove),
+            } => {
+                delete_stored_auth_token()?;
+            }
+            Commands::Auth { command: None } => {
+                obtain_and_store_auth_token().await?;
+            }
         }
-        Some(Commands::Auth { command: None }) => {
-            obtain_and_store_auth_token().await?;
 
-            return Ok(());
-        }
-        None => match get_stored_auth_token()? {
-            Some(token) => token,
-            None => obtain_and_store_auth_token().await?,
-        },
+        return Ok(());
+    }
+
+    let token = match get_stored_auth_token()? {
+        Some(token) => token,
+        None => obtain_and_store_auth_token().await?,
     };
 
     println!("{}", token);
