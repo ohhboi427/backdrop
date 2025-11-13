@@ -1,5 +1,7 @@
 use crate::auth::AuthToken;
+use http::Method;
 use reqwest::Client as HttpClient;
+use serde::de::DeserializeOwned;
 use url::Url;
 
 pub const UNSPLASH_API_URL: &'static str = "https://api.unsplash.com/";
@@ -31,5 +33,23 @@ impl Client {
         let url = Url::parse(UNSPLASH_API_URL).unwrap();
 
         Self { client, url }
+    }
+
+    pub(crate) async fn execute<T: DeserializeOwned, S: AsRef<str>>(
+        &self,
+        method: Method,
+        endpoint: S,
+    ) -> T {
+        let url = self.url.join(endpoint.as_ref()).unwrap();
+
+        let request = self.client.request(method, url).build().unwrap();
+
+        self.client
+            .execute(request)
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap()
     }
 }
