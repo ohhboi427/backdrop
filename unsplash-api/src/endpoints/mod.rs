@@ -1,4 +1,5 @@
 pub mod users;
+pub mod photos;
 
 use crate::client::Client;
 use http::Method;

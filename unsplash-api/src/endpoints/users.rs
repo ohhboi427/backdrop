@@ -3,18 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Social {
-    pub instagram_username: Option<String>,
-    pub portfolio_url: Option<String>,
-    pub twitter_username: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
     pub username: String,
     pub name: String,
-    pub social: Social,
+    pub instagram_username: Option<String>,
+    pub portfolio_url: Option<String>,
+    pub twitter_username: Option<String>,
 }
 
 pub struct Me;
