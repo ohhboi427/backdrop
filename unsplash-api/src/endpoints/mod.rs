@@ -1,3 +1,5 @@
+pub mod users;
+
 use crate::client::Client;
 use http::Method;
 use serde::de::DeserializeOwned;
