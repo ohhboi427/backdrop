@@ -69,3 +69,15 @@ impl Endpoint for Get<'_> {
         format!("/photos/{}", self.id).into()
     }
 }
+
+pub struct TrackDownload<'a> {
+    pub id: &'a str,
+}
+
+impl Endpoint for TrackDownload<'_> {
+    type Output = Photo;
+
+    fn endpoint(&self) -> Cow<'static, str> {
+        format!("/photos/{}/download", self.id).into()
+    }
+}
