@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+pub const BACKDROP_USER_AGENT: &str = "backdrop/1.0";
+pub const BACKDROP_AUTH_URI: &str = "https://backdrop-auth-proxy.ohhboi427.workers.dev/exchange";
+
 pub const UNSPLASH_CLIENT_ID: &str = "s6ac0WqSKlmOLHtY-hlMKzMhywE4vw3aXT9Q9gHzyg8";
 pub const UNSPLASH_AUTH_URI: &str = "https://unsplash.com/oauth/authorize";
-pub const BACKDROP_AUTH_URI: &str ="https://backdrop-auth-proxy.ohhboi427.workers.dev/exchange";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AuthRequest<'a> {
