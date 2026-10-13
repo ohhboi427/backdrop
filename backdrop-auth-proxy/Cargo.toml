@@ -1,0 +1,15 @@
+[package]
+name = "backdrop-auth-proxy"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dávid Kunovics <kunovicsdavid@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker = "0.8"
+worker-macros = "0.8"
+serde = "1.0.229"
+serde_json = "1.0.117"
+serde_urlencoded = "0.7.1"
