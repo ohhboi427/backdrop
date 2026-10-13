@@ -1,0 +1,13 @@
+[package]
+name = "backdrop-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+backdrop-api = { path = "../backdrop-api" }
+open = "5.4.4"
+reqwest = { version = "0.13.5", features = ["json"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_urlencoded = "0.7.1"
+tokio = { version = "1.53.2", features = ["full"] }
+url = { version = "2.5.8", features = ["serde"] }

@@ -10,5 +10,5 @@ crate-type = ["cdylib"]
 [dependencies]
 worker = "0.8"
 worker-macros = "0.8"
-serde = "1.0.229"
+serde = { version = "1.0.229", features = ["derive"] }
 serde_urlencoded = "0.7.1"
