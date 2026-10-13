@@ -1,5 +1,6 @@
 # Cargo
 build/
+target/
 Cargo.lock
 
 # Visual Studio (Code)
