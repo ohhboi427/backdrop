@@ -1,0 +1,13 @@
+# Cargo
+build/
+Cargo.lock
+
+# Visual Studio (Code)
+.vs/
+.vscode/
+
+# CLion
+.idea/
+
+.cache/
+compile_commands.json
