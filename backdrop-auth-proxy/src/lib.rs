@@ -42,6 +42,7 @@ async fn unsplash_token_exchange(mut req: Request, ctx: RouteContext<()>) -> Res
     let headers = Headers::new();
     headers.set("Content-Type", "application/x-www-form-urlencoded")?;
     headers.set("Accept", "application/json")?;
+    headers.set("User-Agent", "backdrop/1.0")?;
 
     let mut init = RequestInit::new();
     init.with_method(Method::Post);
