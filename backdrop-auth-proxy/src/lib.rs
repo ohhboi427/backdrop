@@ -3,13 +3,13 @@ use worker::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
-struct ExchangePayload {
+struct TokenPayload {
     redirect_uri: String,
     code: String,
 }
 
 #[derive(Serialize)]
-struct ExchangeRequest<'a> {
+struct TokenRequest<'a> {
     client_id: &'a str,
     client_secret: &'a str,
     redirect_uri: &'a str,
@@ -18,7 +18,7 @@ struct ExchangeRequest<'a> {
 }
 
 async fn unsplash_token_exchange(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let payload = match req.json::<ExchangePayload>().await {
+    let payload = match req.json::<TokenPayload>().await {
         Ok(payload) =>payload,
         Err(e) => return Response::error(e.to_string(), 400),
     };
@@ -26,7 +26,7 @@ async fn unsplash_token_exchange(mut req: Request, ctx: RouteContext<()>) -> Res
     let client_id = ctx.var("UNSPLASH_CLIENT_ID")?.to_string();
     let client_secret = ctx.secret("UNSPLASH_CLIENT_SECRET")?.to_string();
 
-    let params = ExchangeRequest {
+    let params = TokenRequest {
         client_id: &client_id,
         client_secret: &client_secret,
         redirect_uri: &payload.redirect_uri,
