@@ -4,12 +4,9 @@ use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 use url::Url;
 
-const REDIRECT_BASE: &str = "http://127.0.0.1:8080";
-const REDIRECT_URI: &str = "http://127.0.0.1:8080/callback";
-
 #[derive(Debug, Error)]
 enum LoginError {
-    #[error("Failed to start local redirect listener on 127.0.0.1:8080")]
+    #[error("Failed to start local redirect listener on 127.0.0.1")]
     PortConflict,
 
     #[error("Failed to launch a browser")]
@@ -25,37 +22,22 @@ enum LoginError {
     IoError(#[from] std::io::Error),
 }
 
-fn extract_code(req: &str) -> Result<String, LoginError> {
-    let path_and_query = req
-        .lines()
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))
-        .ok_or(LoginError::AccessDenied)?;
-
-    let url = Url::parse(&format!("{REDIRECT_BASE}{path_and_query}"));
-    url.map_err(|_| LoginError::AccessDenied)?
-        .query_pairs()
-        .find(|(k, _)| k == "code")
-        .map(|(_, v)| v.into_owned())
-        .ok_or(LoginError::AccessDenied)
-}
-
-async fn login() -> Result<TokenResponse, LoginError> {
-    let redirect_server = TcpListener::bind("127.0.0.1:8080").await?;
-
-    const AUTH_PARAMS: AuthRequest = AuthRequest {
+fn build_auth_url(redirect_uri: &str, _state: Option<&str>) -> Url {
+    let auth_params: AuthRequest = AuthRequest {
         client_id: UNSPLASH_CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri,
         response_type: "code",
         scope: "public",
     };
 
-    let mut auth_url = Url::parse(UNSPLASH_AUTH_URI).unwrap();
-    auth_url.set_query(Some(&serde_urlencoded::to_string(&AUTH_PARAMS).unwrap()));
+    let mut url = Url::parse(UNSPLASH_AUTH_URI).unwrap();
+    url.set_query(Some(&serde_urlencoded::to_string(&auth_params).unwrap()));
 
-    open::that(auth_url.as_str()).map_err(|_| LoginError::Browser)?;
+    url
+}
 
-    let (mut socket, _addr) = redirect_server
+async fn capture_auth_code(callback: &TcpListener) -> Result<String, LoginError> {
+    let (mut socket, _addr) = callback
         .accept()
         .await
         .map_err(|_| LoginError::PortConflict)?;
@@ -64,10 +46,36 @@ async fn login() -> Result<TokenResponse, LoginError> {
     let bytes_read = socket.read(&mut bytes[..]).await?;
     let request_str = String::from_utf8_lossy(&bytes[..bytes_read]);
 
-    let code = extract_code(&request_str)?;
+    let path_and_query = request_str
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .ok_or(LoginError::AccessDenied)?;
 
+    let query = path_and_query
+        .split_once("?")
+        .map(|(_, q)| q)
+        .unwrap_or_default();
+
+    let code = form_urlencoded::parse(query.as_bytes())
+        .find(|(k, _)| k == "code")
+        .map(|(_, v)| v.into_owned())
+        .ok_or(LoginError::AccessDenied)?;
+
+    Ok(code)
+}
+
+async fn login() -> Result<TokenResponse, LoginError> {
+    let callback = TcpListener::bind("127.0.0.1:0").await?;
+    let port = callback.local_addr()?.port();
+    let redirect_uri = Url::parse(&format!("http://127.0.0.1:{port}/callback")).unwrap();
+
+    let auth_url = build_auth_url(redirect_uri.as_str(), None);
+    open::that(auth_url.as_str()).map_err(|_| LoginError::Browser)?;
+
+    let code = capture_auth_code(&callback).await?;
     let token_params = TokenRequest {
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirect_uri.as_str(),
         code: &code,
     };
 

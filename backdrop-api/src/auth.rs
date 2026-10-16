@@ -6,7 +6,7 @@ pub const BACKDROP_AUTH_URI: &str = "https://backdrop-auth-proxy.ohhboi427.worke
 pub const UNSPLASH_CLIENT_ID: &str = "s6ac0WqSKlmOLHtY-hlMKzMhywE4vw3aXT9Q9gHzyg8";
 pub const UNSPLASH_AUTH_URI: &str = "https://unsplash.com/oauth/authorize";
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct AuthRequest<'a> {
     pub client_id: &'a str,
     pub redirect_uri: &'a str,
@@ -14,13 +14,13 @@ pub struct AuthRequest<'a> {
     pub scope: &'a str,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct TokenRequest<'a> {
     pub redirect_uri: &'a str,
     pub code: &'a str,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
     pub token_type: String,
