@@ -1,4 +1,4 @@
-use backdrop_api::auth::*;
+use backdrop_api::auth::{self, TokenResponse};
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
@@ -20,20 +20,6 @@ enum LoginError {
 
     #[error("General I/O error")]
     IoError(#[from] std::io::Error),
-}
-
-fn build_auth_url(redirect_uri: &str, _state: Option<&str>) -> Url {
-    let auth_params: AuthRequest = AuthRequest {
-        client_id: UNSPLASH_CLIENT_ID,
-        redirect_uri,
-        response_type: "code",
-        scope: "public",
-    };
-
-    let mut url = Url::parse(UNSPLASH_AUTH_URI).unwrap();
-    url.set_query(Some(&serde_urlencoded::to_string(&auth_params).unwrap()));
-
-    url
 }
 
 async fn capture_auth_code(callback: &TcpListener) -> Result<String, LoginError> {
@@ -70,25 +56,13 @@ async fn login() -> Result<TokenResponse, LoginError> {
     let port = callback.local_addr()?.port();
     let redirect_uri = Url::parse(&format!("http://127.0.0.1:{port}/callback")).unwrap();
 
-    let auth_url = build_auth_url(redirect_uri.as_str(), None);
+    let auth_url = auth::build_auth_url(redirect_uri.as_str(), None);
     open::that(auth_url.as_str()).map_err(|_| LoginError::Browser)?;
 
     let code = capture_auth_code(&callback).await?;
-    let token_params = TokenRequest {
-        redirect_uri: redirect_uri.as_str(),
-        code: &code,
-    };
+    let token = auth::exchange_token(&code, redirect_uri.as_str()).await?;
 
-    Ok(reqwest::Client::builder()
-        .user_agent(BACKDROP_USER_AGENT)
-        .build()?
-        .post(BACKDROP_AUTH_URI)
-        .json(&token_params)
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<TokenResponse>()
-        .await?)
+    Ok(token)
 }
 
 #[tokio::main]

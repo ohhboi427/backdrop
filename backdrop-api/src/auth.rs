@@ -1,23 +1,24 @@
 use serde::{Deserialize, Serialize};
+use url::Url;
 
-pub const BACKDROP_USER_AGENT: &str = "backdrop/1.0";
-pub const BACKDROP_AUTH_URI: &str = "https://backdrop-auth-proxy.ohhboi427.workers.dev/exchange";
+const BACKDROP_USER_AGENT: &str = "backdrop/1.0";
+const BACKDROP_AUTH_URI: &str = "https://backdrop-auth-proxy.ohhboi427.workers.dev/exchange";
 
-pub const UNSPLASH_CLIENT_ID: &str = "s6ac0WqSKlmOLHtY-hlMKzMhywE4vw3aXT9Q9gHzyg8";
-pub const UNSPLASH_AUTH_URI: &str = "https://unsplash.com/oauth/authorize";
+const UNSPLASH_CLIENT_ID: &str = "s6ac0WqSKlmOLHtY-hlMKzMhywE4vw3aXT9Q9gHzyg8";
+const UNSPLASH_AUTH_URI: &str = "https://unsplash.com/oauth/authorize";
 
 #[derive(Debug, Serialize)]
-pub struct AuthRequest<'a> {
-    pub client_id: &'a str,
-    pub redirect_uri: &'a str,
-    pub response_type: &'a str,
-    pub scope: &'a str,
+struct AuthRequest<'a> {
+    client_id: &'a str,
+    redirect_uri: &'a str,
+    response_type: &'a str,
+    scope: &'a str,
 }
 
 #[derive(Debug, Serialize)]
-pub struct TokenRequest<'a> {
-    pub redirect_uri: &'a str,
-    pub code: &'a str,
+struct TokenRequest<'a> {
+    redirect_uri: &'a str,
+    code: &'a str,
 }
 
 #[derive(Debug, Deserialize)]
@@ -26,4 +27,36 @@ pub struct TokenResponse {
     pub token_type: String,
     pub scope: String,
     pub created_at: u64,
+}
+
+pub fn build_auth_url(redirect_uri: &str, _state: Option<&str>) -> Url {
+    let auth_params: AuthRequest = AuthRequest {
+        client_id: UNSPLASH_CLIENT_ID,
+        redirect_uri,
+        response_type: "code",
+        scope: "public",
+    };
+
+    let mut url = Url::parse(UNSPLASH_AUTH_URI).unwrap();
+    url.set_query(Some(&serde_urlencoded::to_string(&auth_params).unwrap()));
+
+    url
+}
+
+pub async fn exchange_token(
+    code: &str,
+    redirect_uri: &str,
+) -> Result<TokenResponse, reqwest::Error> {
+    let token_params = TokenRequest { redirect_uri, code };
+
+    Ok(reqwest::Client::builder()
+        .user_agent(BACKDROP_USER_AGENT)
+        .build()?
+        .post(BACKDROP_AUTH_URI)
+        .json(&token_params)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<TokenResponse>()
+        .await?)
 }
