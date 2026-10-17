@@ -1,8 +1,12 @@
+mod error;
+
 use backdrop_api::auth::{self, TokenResponse};
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 use url::Url;
+
+pub use crate::error::{Error, Result};
 
 #[derive(Debug, Error)]
 enum LoginError {
@@ -10,19 +14,13 @@ enum LoginError {
     PortConflict,
 
     #[error("Failed to launch a browser")]
-    Browser,
+    BrowserLaunch,
 
     #[error("OAuth callback received without authorization code")]
     AccessDenied,
-
-    #[error("General network error")]
-    NetworkError(#[from] reqwest::Error),
-
-    #[error("General I/O error")]
-    IoError(#[from] std::io::Error),
 }
 
-async fn capture_auth_code(callback: &TcpListener) -> Result<String, LoginError> {
+async fn capture_auth_code(callback: &TcpListener) -> Result<String> {
     let (mut socket, _addr) = callback
         .accept()
         .await
@@ -51,13 +49,13 @@ async fn capture_auth_code(callback: &TcpListener) -> Result<String, LoginError>
     Ok(code)
 }
 
-async fn login() -> Result<TokenResponse, LoginError> {
+async fn login() -> Result<TokenResponse> {
     let callback = TcpListener::bind("127.0.0.1:0").await?;
     let port = callback.local_addr()?.port();
     let redirect_uri = Url::parse(&format!("http://127.0.0.1:{port}/callback")).unwrap();
 
     let auth_url = auth::build_auth_url(redirect_uri.as_str(), None);
-    open::that(auth_url.as_str()).map_err(|_| LoginError::Browser)?;
+    open::that(auth_url.as_str()).map_err(|_| LoginError::BrowserLaunch)?;
 
     let code = capture_auth_code(&callback).await?;
     let token = auth::exchange_token(&code, redirect_uri.as_str()).await?;

@@ -1,4 +1,8 @@
+use crate::Result;
+
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use url::Url;
 
 const BACKDROP_USER_AGENT: &str = "backdrop/1.0";
@@ -6,6 +10,15 @@ const BACKDROP_AUTH_URI: &str = "https://backdrop-auth-proxy.ohhboi427.workers.d
 
 const UNSPLASH_CLIENT_ID: &str = "s6ac0WqSKlmOLHtY-hlMKzMhywE4vw3aXT9Q9gHzyg8";
 const UNSPLASH_AUTH_URI: &str = "https://unsplash.com/oauth/authorize";
+
+#[derive(Debug, Error)]
+pub enum AuthError {
+    #[error("Authorization code is invalid or expired")]
+    InvalidCode,
+
+    #[error("OAuth state mismatch")]
+    StateMismatch,
+}
 
 #[derive(Debug, Serialize)]
 struct AuthRequest<'a> {
@@ -43,20 +56,21 @@ pub fn build_auth_url(redirect_uri: &str, _state: Option<&str>) -> Url {
     url
 }
 
-pub async fn exchange_token(
-    code: &str,
-    redirect_uri: &str,
-) -> Result<TokenResponse, reqwest::Error> {
+pub async fn exchange_token(code: &str, redirect_uri: &str) -> Result<TokenResponse> {
     let token_params = TokenRequest { redirect_uri, code };
 
-    Ok(reqwest::Client::builder()
+    let response = reqwest::Client::builder()
         .user_agent(BACKDROP_USER_AGENT)
         .build()?
         .post(BACKDROP_AUTH_URI)
         .json(&token_params)
         .send()
-        .await?
-        .error_for_status()?
-        .json::<TokenResponse>()
-        .await?)
+        .await?;
+
+    let status = response.status();
+    if status == StatusCode::BAD_REQUEST || status == StatusCode::UNAUTHORIZED {
+        return Err(AuthError::InvalidCode.into());
+    }
+
+    Ok(response.error_for_status()?.json().await?)
 }
