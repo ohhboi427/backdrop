@@ -2,6 +2,7 @@ mod error;
 
 use backdrop_api::auth::{self, Auth, TokenResponse};
 use backdrop_api::client::Client;
+use backdrop_api::endpoints;
 pub use error::{Error, Result};
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
@@ -54,7 +55,7 @@ async fn login() -> Result<TokenResponse> {
     let port = callback.local_addr()?.port();
     let redirect_uri = Url::parse(&format!("http://127.0.0.1:{port}/callback")).unwrap();
 
-    let auth_url = auth::build_auth_url(redirect_uri.as_str(), None);
+    let auth_url = auth::build_auth_url(redirect_uri.as_str(), "public read_user write_user", None);
     open::that(auth_url.as_str()).map_err(|_| LoginError::BrowserLaunch)?;
 
     let code = capture_auth_code(&callback).await?;
@@ -68,7 +69,12 @@ async fn main() -> Result<()> {
     let token = login().await?;
     let auth = Auth::Bearer(token.access_token);
 
-    let _client = Client::new(auth)?;
+    let client = Client::new(auth)?;
+
+    let req = endpoints::me::Get::default();
+    let user = client.execute(req).await?;
+
+    println!("{:#?}", user);
 
     Ok(())
 }

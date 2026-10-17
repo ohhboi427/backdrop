@@ -47,12 +47,12 @@ pub struct TokenResponse {
     pub created_at: u64,
 }
 
-pub fn build_auth_url(redirect_uri: &str, _state: Option<&str>) -> Url {
+pub fn build_auth_url(redirect_uri: &str, scope: &str, _state: Option<&str>) -> Url {
     let auth_params: AuthRequest = AuthRequest {
         client_id: UNSPLASH_CLIENT_ID,
         redirect_uri,
         response_type: "code",
-        scope: "public",
+        scope,
     };
 
     let mut url = Url::parse(UNSPLASH_AUTH_URI).unwrap();

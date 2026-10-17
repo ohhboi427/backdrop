@@ -1,4 +1,7 @@
+pub mod me;
+
 pub use http::Method;
+
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::borrow::Cow;
