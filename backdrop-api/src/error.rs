@@ -1,5 +1,4 @@
 use crate::auth::AuthError;
-
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;

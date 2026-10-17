@@ -1,12 +1,12 @@
 mod error;
 
-use backdrop_api::auth::{self, TokenResponse};
+use backdrop_api::auth::{self, Auth, TokenResponse};
+use backdrop_api::client::Client;
+pub use error::{Error, Result};
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 use url::Url;
-
-pub use error::{Error, Result};
 
 #[derive(Debug, Error)]
 pub enum LoginError {
@@ -66,7 +66,9 @@ async fn login() -> Result<TokenResponse> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let token = login().await?;
-    println!("{:#?}", token);
+    let auth = Auth::Bearer(token.access_token);
+
+    let _client = Client::new(auth)?;
 
     Ok(())
 }
