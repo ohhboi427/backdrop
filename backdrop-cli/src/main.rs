@@ -55,11 +55,11 @@ async fn login() -> Result<TokenResponse> {
     let port = callback.local_addr()?.port();
     let redirect_uri = Url::parse(&format!("http://127.0.0.1:{port}/callback")).unwrap();
 
-    let auth_url = auth::build_auth_url(redirect_uri.as_str(), "public read_user write_user", None);
+    let auth_url = auth::build_auth_url(&redirect_uri, "public read_user write_user", None);
     open::that(auth_url.as_str()).map_err(|_| LoginError::BrowserLaunch)?;
 
     let code = capture_auth_code(&callback).await?;
-    let token = auth::exchange_token(&code, redirect_uri.as_str()).await?;
+    let token = auth::exchange_token(&code, &redirect_uri).await?;
 
     Ok(token)
 }

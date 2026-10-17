@@ -42,9 +42,6 @@ pub struct Update<'a> {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instagram_username: Option<&'a str>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub twitter_username: Option<&'a str>,
 }
 
 impl Endpoint for Update<'_> {

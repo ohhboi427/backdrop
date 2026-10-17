@@ -28,14 +28,14 @@ pub enum Auth {
 #[derive(Debug, Serialize)]
 struct AuthRequest<'a> {
     client_id: &'a str,
-    redirect_uri: &'a str,
+    redirect_uri: &'a Url,
     response_type: &'a str,
     scope: &'a str,
 }
 
 #[derive(Debug, Serialize)]
 struct TokenRequest<'a> {
-    redirect_uri: &'a str,
+    redirect_uri: &'a Url,
     code: &'a str,
 }
 
@@ -47,7 +47,7 @@ pub struct TokenResponse {
     pub created_at: u64,
 }
 
-pub fn build_auth_url(redirect_uri: &str, scope: &str, _state: Option<&str>) -> Url {
+pub fn build_auth_url(redirect_uri: &Url, scope: &str, _state: Option<&str>) -> Url {
     let auth_params: AuthRequest = AuthRequest {
         client_id: UNSPLASH_CLIENT_ID,
         redirect_uri,
@@ -61,7 +61,7 @@ pub fn build_auth_url(redirect_uri: &str, scope: &str, _state: Option<&str>) -> 
     url
 }
 
-pub async fn exchange_token(code: &str, redirect_uri: &str) -> Result<TokenResponse> {
+pub async fn exchange_token(code: &str, redirect_uri: &Url) -> Result<TokenResponse> {
     let token_params = TokenRequest { redirect_uri, code };
 
     let response = reqwest::Client::builder()

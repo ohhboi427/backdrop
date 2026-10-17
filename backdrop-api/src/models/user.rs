@@ -35,7 +35,7 @@ pub struct User {
     pub bio: Option<String>,
     pub email: Option<String>,
     pub location: Option<String>,
-    pub profile_image: ProfileImage,
     pub links: Links,
+    pub profile_image: ProfileImage,
     pub social: Social,
 }
