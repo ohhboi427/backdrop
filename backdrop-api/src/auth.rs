@@ -1,10 +1,10 @@
 use crate::Result;
+use crate::client::BACKDROP_USER_AGENT;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
-pub(crate) const BACKDROP_USER_AGENT: &str = "backdrop/1.0";
 const BACKDROP_AUTH_URI: &str = "https://backdrop-auth-proxy.ohhboi427.workers.dev/exchange";
 
 const UNSPLASH_CLIENT_ID: &str = "s6ac0WqSKlmOLHtY-hlMKzMhywE4vw3aXT9Q9gHzyg8";

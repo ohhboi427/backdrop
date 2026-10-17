@@ -1,6 +1,12 @@
 use crate::Result;
-use crate::auth::{Auth, BACKDROP_USER_AGENT};
-use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
+use crate::auth::Auth;
+use crate::endpoints::Endpoint;
+use http::Method;
+use reqwest::header::{self, HeaderMap, HeaderValue};
+use url::Url;
+
+pub(crate) const BACKDROP_USER_AGENT: &str = "backdrop/1.0";
+const UNSPLASH_API_URL: &str = "https://api.unsplash.com/";
 
 pub struct Client {
     http: reqwest::Client,
@@ -17,7 +23,7 @@ impl Client {
         auth_header.set_sensitive(true);
 
         let mut headers = HeaderMap::new();
-        headers.insert(AUTHORIZATION, auth_header);
+        headers.insert(header::AUTHORIZATION, auth_header);
 
         let http = reqwest::Client::builder()
             .user_agent(BACKDROP_USER_AGENT)
@@ -25,5 +31,20 @@ impl Client {
             .build()?;
 
         Ok(Self { http })
+    }
+
+    pub async fn execute<E: Endpoint>(&self, endpoint: E) -> Result<E::Response> {
+        let path = endpoint.path();
+        let url = Url::parse(&format!("{UNSPLASH_API_URL}{path}"))?;
+
+        let mut req = self.http.request(E::METHOD, url);
+        req = match E::METHOD {
+            Method::GET | Method::DELETE => req.query(&endpoint),
+            _ => req.json(&endpoint),
+        };
+
+        let resp = req.send().await?.error_for_status()?;
+
+        Ok(resp.json().await?)
     }
 }
