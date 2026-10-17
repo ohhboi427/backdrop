@@ -1,4 +1,5 @@
 pub mod me;
+pub mod user;
 
 pub use http::Method;
 
