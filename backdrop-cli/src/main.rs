@@ -6,10 +6,10 @@ use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 use url::Url;
 
-pub use crate::error::{Error, Result};
+pub use error::{Error, Result};
 
 #[derive(Debug, Error)]
-enum LoginError {
+pub enum LoginError {
     #[error("Failed to start local redirect listener on 127.0.0.1")]
     PortConflict,
 
@@ -64,7 +64,7 @@ async fn login() -> Result<TokenResponse> {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     let token = login().await?;
     println!("{:#?}", token);
 
