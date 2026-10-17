@@ -65,11 +65,22 @@ async fn login() -> Result<TokenResponse> {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let token = login().await?;
-    let auth = Auth::Bearer(token.access_token);
+async fn main() -> anyhow::Result<()> {
+    let entry = keyring::Entry::new("backdrop", "default")?;
+    let token = match entry.get_password() {
+        Ok(token) => Auth::Bearer(token),
 
-    let client = Client::new(auth)?;
+        Err(keyring::Error::NoEntry) => {
+            let token = login().await?;
+            entry.set_password(&token.access_token)?;
+
+            Auth::Bearer(token.access_token)
+        }
+
+        Err(e) => return Err(e.into()),
+    };
+
+    let client = Client::new(token)?;
 
     let req = endpoints::me::Get::default();
     let user = client.execute(req).await?;
