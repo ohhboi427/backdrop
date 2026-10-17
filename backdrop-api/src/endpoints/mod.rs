@@ -1,5 +1,6 @@
 pub mod me;
 pub mod user;
+pub mod photo;
 
 pub use http::Method;
 
