@@ -66,15 +66,31 @@ pub struct Photo {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Orientation {
-    Landscape,
-    Portrait,
-    Squarish,
+pub enum ContentFilter {
+    Low,
+    High,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ContentFilter {
-    Low,
-    High,
+pub enum Color {
+    BlackAndWhite,
+    Black,
+    White,
+    Yellow,
+    Orange,
+    Red,
+    Purple,
+    Magenta,
+    Green,
+    Teal,
+    Blue,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Orientation {
+    Landscape,
+    Portrait,
+    Squarish,
 }
