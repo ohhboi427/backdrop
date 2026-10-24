@@ -1,5 +1,5 @@
 use crate::models::User;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 #[derive(Debug, Deserialize)]
@@ -62,4 +62,19 @@ pub struct Photo {
     pub user: User,
     pub exif: Option<Exif>,
     pub location: Option<Location>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Orientation {
+    Landscape,
+    Portrait,
+    Squarish,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentFilter {
+    Low,
+    High,
 }

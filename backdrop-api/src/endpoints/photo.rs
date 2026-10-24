@@ -1,5 +1,5 @@
 use crate::endpoints::Endpoint;
-use crate::models::photo::Photo;
+use crate::models::{Photo, photo::ContentFilter, photo::Orientation};
 use http::Method;
 use serde::Serialize;
 use std::borrow::Cow;
@@ -46,21 +46,6 @@ impl Endpoint for Get<'_> {
     fn path(&self) -> Cow<'static, str> {
         format!("photos/{}", self.id).into()
     }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Orientation {
-    Landscape,
-    Portrait,
-    Squarish,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ContentFilter {
-    Low,
-    High,
 }
 
 #[derive(Debug, Serialize)]
