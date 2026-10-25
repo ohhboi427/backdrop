@@ -1,8 +1,9 @@
 use crate::models::{Photo, User};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Links {
     #[serde(rename = "self")]
     pub itself: Url,
@@ -10,7 +11,8 @@ pub struct Links {
     pub photos: Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Topic {
     pub id: String,
     pub slug: String,

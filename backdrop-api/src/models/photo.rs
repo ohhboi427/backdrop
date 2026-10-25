@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::num::NonZeroU32;
 use url::Url;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Urls {
     pub raw: Url,
     pub full: Url,
@@ -12,7 +13,8 @@ pub struct Urls {
     pub thumb: Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Links {
     #[serde(rename = "self")]
     pub itself: Url,
@@ -21,7 +23,8 @@ pub struct Links {
     pub download_location: Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Exif {
     pub make: Option<String>,
     pub model: Option<String>,
@@ -32,7 +35,8 @@ pub struct Exif {
     pub iso: Option<u32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Location {
     pub name: Option<String>,
     pub city: Option<String>,
@@ -40,13 +44,15 @@ pub struct Location {
     pub position: Option<Position>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Position {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Photo {
     pub id: String,
     pub width: Option<NonZeroU32>,
@@ -65,20 +71,23 @@ pub struct Photo {
     pub location: Option<Location>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Download {
     pub url: Url,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub enum ContentFilter {
     Low,
     High,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub enum Color {
     BlackAndWhite,
     Black,
@@ -93,8 +102,9 @@ pub enum Color {
     Blue,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub enum Orientation {
     Landscape,
     Portrait,

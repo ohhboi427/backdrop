@@ -8,5 +8,10 @@ http = "1.5"
 reqwest = { version = "0.13", features = ["json", "query"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_urlencoded = "0.7"
+specta = { version = "2.0.0-rc.27", optional = true, features = ["derive", "url"] }
 thiserror = "2.0"
 url = { version = "2.5", features = ["serde"] }
+
+[features]
+default = []
+typescript = ["dep:specta"]

@@ -1,7 +1,8 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Social {
     pub instagram_username: Option<String>,
     pub portfolio_url: Option<String>,
@@ -9,7 +10,8 @@ pub struct Social {
     pub paypal_email: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct Links {
     #[serde(rename = "self")]
     pub itself: Url,
@@ -18,14 +20,16 @@ pub struct Links {
     pub html: Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct ProfileImage {
     pub small: Url,
     pub medium: Url,
     pub large: Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "typescript", derive(specta::Type))]
 pub struct User {
     pub id: String,
     pub username: String,
