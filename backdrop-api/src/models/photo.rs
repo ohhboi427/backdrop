@@ -1,5 +1,6 @@
 use crate::models::User;
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroU32;
 use url::Url;
 
 #[derive(Debug, Deserialize)]
@@ -48,8 +49,8 @@ pub struct Position {
 #[derive(Debug, Deserialize)]
 pub struct Photo {
     pub id: String,
-    pub width: u32,
-    pub height: u32,
+    pub width: Option<NonZeroU32>,
+    pub height: Option<NonZeroU32>,
     pub color: Option<String>,
     pub blur_hash: Option<String>,
     pub description: Option<String>,
@@ -58,8 +59,8 @@ pub struct Photo {
     pub alt_description: Option<String>,
     pub short_description: Option<String>,
     pub seo_meta_description: Option<String>,
-    pub links: Links,
-    pub user: User,
+    pub links: Option<Links>,
+    pub user: Option<User>,
     pub exif: Option<Exif>,
     pub location: Option<Location>,
 }

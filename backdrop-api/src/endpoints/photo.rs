@@ -3,15 +3,16 @@ use crate::models::{Photo, photo::ContentFilter, photo::Orientation};
 use http::Method;
 use serde::Serialize;
 use std::borrow::Cow;
+use std::num::NonZeroU32;
 use url::Url;
 
 #[derive(Debug, Serialize)]
 pub struct List {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
+    pub page: Option<NonZeroU32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u32>,
+    pub per_page: Option<NonZeroU32>,
 }
 
 impl Endpoint for List {
@@ -27,8 +28,8 @@ impl Endpoint for List {
 impl Default for List {
     fn default() -> Self {
         Self {
-            page: Some(1),
-            per_page: Some(10),
+            page: Some(NonZeroU32::new(1).unwrap()),
+            per_page: Some(NonZeroU32::new(10).unwrap()),
         }
     }
 }
@@ -70,7 +71,7 @@ pub struct Random<'a> {
     pub content_filter: Option<ContentFilter>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<u32>,
+    pub count: Option<NonZeroU32>,
 }
 
 impl Endpoint for Random<'_> {
@@ -92,7 +93,7 @@ impl Default for Random<'_> {
             query: None,
             orientation: None,
             content_filter: Some(ContentFilter::Low),
-            count: Some(1),
+            count: Some(NonZeroU32::new(1).unwrap()),
         }
     }
 }

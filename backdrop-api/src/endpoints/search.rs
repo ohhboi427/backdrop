@@ -4,16 +4,17 @@ use crate::models::{Photo, SearchResult, User};
 use http::Method;
 use serde::Serialize;
 use std::borrow::Cow;
+use std::num::NonZeroU32;
 
 #[derive(Debug, Serialize)]
 pub struct Users<'a> {
     pub query: &'a str,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
+    pub page: Option<NonZeroU32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u32>,
+    pub per_page: Option<NonZeroU32>,
 }
 
 impl Endpoint for Users<'_> {
@@ -30,8 +31,8 @@ impl<'a> Users<'a> {
     pub fn new(query: &'a str) -> Self {
         Self {
             query,
-            page: Some(1),
-            per_page: Some(10),
+            page: Some(NonZeroU32::new(1).unwrap()),
+            per_page: Some(NonZeroU32::new(10).unwrap()),
         }
     }
 }
@@ -41,10 +42,10 @@ pub struct Photos<'a> {
     pub query: &'a str,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
+    pub page: Option<NonZeroU32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u32>,
+    pub per_page: Option<NonZeroU32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_filter: Option<ContentFilter>,
@@ -70,8 +71,8 @@ impl<'a> Photos<'a> {
     pub fn new(query: &'a str) -> Self {
         Self {
             query,
-            page: Some(1),
-            per_page: Some(10),
+            page: Some(NonZeroU32::new(1).unwrap()),
+            per_page: Some(NonZeroU32::new(10).unwrap()),
             content_filter: None,
             color: None,
             orientation: None,

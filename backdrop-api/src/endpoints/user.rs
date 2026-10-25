@@ -3,6 +3,7 @@ use crate::models::{Photo, User, photo::Orientation};
 use http::Method;
 use serde::Serialize;
 use std::borrow::Cow;
+use std::num::NonZeroU32;
 
 #[derive(Debug, Serialize)]
 pub struct Get<'a> {
@@ -26,10 +27,10 @@ pub struct PhotosOf<'a> {
     pub username: &'a str,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<u32>,
+    pub page: Option<NonZeroU32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub per_page: Option<u32>,
+    pub per_page: Option<NonZeroU32>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub orientation: Option<Orientation>,
@@ -49,8 +50,8 @@ impl<'a> PhotosOf<'a> {
     pub fn new(username: &'a str) -> Self {
         Self {
             username,
-            page: Some(1),
-            per_page: Some(10),
+            page: Some(NonZeroU32::new(1).unwrap()),
+            per_page: Some(NonZeroU32::new(10).unwrap()),
             orientation: None,
         }
     }
