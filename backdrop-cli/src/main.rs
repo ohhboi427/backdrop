@@ -82,8 +82,10 @@ async fn main() -> anyhow::Result<()> {
 
     let client = Client::new(token)?;
 
-    let mut req = endpoints::photo::Random::default();
-    req.count = Some(1);
+    let req = endpoints::photo::Random {
+        count: Some(1),
+        ..Default::default()
+    };
 
     let photos = client.execute(req).await?;
 

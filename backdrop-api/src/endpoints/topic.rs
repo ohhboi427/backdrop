@@ -27,6 +27,16 @@ impl Endpoint for List<'_> {
     }
 }
 
+impl Default for List<'_> {
+    fn default() -> Self {
+        Self {
+            ids_or_slugs: None,
+            page: Some(1),
+            per_page: Some(10),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Get<'a> {
     #[serde(skip_serializing)]
@@ -65,5 +75,16 @@ impl Endpoint for PhotosOf<'_> {
 
     fn path(&self) -> Cow<'static, str> {
         format!("topics/{}/photos", self.id_or_slug).into()
+    }
+}
+
+impl<'a> PhotosOf<'a> {
+    pub fn new(id_or_slug: &'a str) -> Self {
+        Self {
+            id_or_slug,
+            page: Some(1),
+            per_page: Some(10),
+            orientation: None,
+        }
     }
 }

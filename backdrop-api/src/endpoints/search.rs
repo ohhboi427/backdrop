@@ -26,6 +26,16 @@ impl Endpoint for Users<'_> {
     }
 }
 
+impl<'a> Users<'a> {
+    pub fn new(query: &'a str) -> Self {
+        Self {
+            query,
+            page: Some(1),
+            per_page: Some(10),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Photos<'a> {
     pub query: &'a str,
@@ -53,5 +63,18 @@ impl Endpoint for Photos<'_> {
 
     fn path(&self) -> Cow<'static, str> {
         "search/photos".into()
+    }
+}
+
+impl<'a> Photos<'a> {
+    pub fn new(query: &'a str) -> Self {
+        Self {
+            query,
+            page: Some(1),
+            per_page: Some(10),
+            content_filter: None,
+            color: None,
+            orientation: None,
+        }
     }
 }

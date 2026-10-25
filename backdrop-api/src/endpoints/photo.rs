@@ -51,11 +51,11 @@ impl Endpoint for Get<'_> {
 
 #[derive(Debug, Serialize)]
 pub struct Random<'a> {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub collections: Option<&'a str>,
+    #[serde(rename = "collections", skip_serializing_if = "Option::is_none")]
+    pub collection_ids: Option<&'a str>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub topics: Option<&'a str>,
+    #[serde(rename = "topics", skip_serializing_if = "Option::is_none")]
+    pub topic_ids: Option<&'a str>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<&'a str>,
@@ -86,8 +86,8 @@ impl Endpoint for Random<'_> {
 impl Default for Random<'_> {
     fn default() -> Self {
         Self {
-            collections: None,
-            topics: None,
+            collection_ids: None,
+            topic_ids: None,
             username: None,
             query: None,
             orientation: None,

@@ -44,3 +44,14 @@ impl Endpoint for PhotosOf<'_> {
         format!("users/{}/photos", self.username).into()
     }
 }
+
+impl<'a> PhotosOf<'a> {
+    pub fn new(username: &'a str) -> Self {
+        Self {
+            username,
+            page: Some(1),
+            per_page: Some(10),
+            orientation: None,
+        }
+    }
+}
