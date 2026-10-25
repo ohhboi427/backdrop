@@ -2,6 +2,7 @@ pub mod me;
 pub mod photo;
 pub mod search;
 pub mod user;
+pub mod topic;
 
 pub use http::Method;
 
