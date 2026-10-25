@@ -1,5 +1,6 @@
 use crate::endpoints::Endpoint;
-use crate::models::{Photo, User, photo::Orientation};
+use crate::models::photo::Orientation;
+use crate::models::{Photo, User};
 use http::Method;
 use serde::Serialize;
 use std::borrow::Cow;

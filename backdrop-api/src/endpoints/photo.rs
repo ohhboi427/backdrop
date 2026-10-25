@@ -1,10 +1,10 @@
 use crate::endpoints::Endpoint;
-use crate::models::{Photo, photo::ContentFilter, photo::Orientation};
+use crate::models::Photo;
+use crate::models::photo::{ContentFilter, Download, Orientation};
 use http::Method;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::num::NonZeroU32;
-use url::Url;
 
 #[derive(Debug, Serialize)]
 pub struct List {
@@ -105,7 +105,7 @@ pub struct TrackDownload<'a> {
 }
 
 impl Endpoint for TrackDownload<'_> {
-    type Response = Url;
+    type Response = Download;
 
     const METHOD: Method = Method::GET;
 
