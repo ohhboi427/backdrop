@@ -10,6 +10,7 @@ const UNSPLASH_API_URL: &str = "https://api.unsplash.com/";
 
 pub struct Client {
     http: reqwest::Client,
+    base_url: Url,
 }
 
 impl Client {
@@ -30,12 +31,14 @@ impl Client {
             .default_headers(headers)
             .build()?;
 
-        Ok(Self { http })
+        Ok(Self {
+            http,
+            base_url: Url::parse(UNSPLASH_API_URL)?,
+        })
     }
 
     pub async fn execute<E: Endpoint>(&self, endpoint: E) -> Result<E::Response> {
-        let path = endpoint.path();
-        let url = Url::parse(&format!("{UNSPLASH_API_URL}{path}"))?;
+        let url = self.base_url.join(&endpoint.path())?;
 
         let mut req = self.http.request(E::METHOD, url);
         req = match E::METHOD {
