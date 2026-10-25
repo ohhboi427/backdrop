@@ -22,6 +22,12 @@ impl Endpoint for Get<'_> {
     }
 }
 
+impl<'a> Get<'a> {
+    pub fn new(username: &'a str) -> Self {
+        Self { username }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct PhotosOf<'a> {
     #[serde(skip_serializing)]
@@ -51,8 +57,8 @@ impl<'a> PhotosOf<'a> {
     pub fn new(username: &'a str) -> Self {
         Self {
             username,
-            page: Some(NonZeroU32::new(1).unwrap()),
-            per_page: Some(NonZeroU32::new(10).unwrap()),
+            page: None,
+            per_page: None,
             orientation: None,
         }
     }

@@ -17,6 +17,12 @@ impl Endpoint for Get {
     }
 }
 
+impl Get {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 #[derive(Debug, Default, Serialize)]
 pub struct Update<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -51,5 +57,11 @@ impl Endpoint for Update<'_> {
 
     fn path(&self) -> Cow<'static, str> {
         "me".into()
+    }
+}
+
+impl Update<'_> {
+    pub fn new() -> Self {
+        Self::default()
     }
 }

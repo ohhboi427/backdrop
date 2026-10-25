@@ -31,8 +31,8 @@ impl<'a> Users<'a> {
     pub fn new(query: &'a str) -> Self {
         Self {
             query,
-            page: Some(NonZeroU32::new(1).unwrap()),
-            per_page: Some(NonZeroU32::new(10).unwrap()),
+            page: None,
+            per_page: None,
         }
     }
 }
@@ -71,8 +71,8 @@ impl<'a> Photos<'a> {
     pub fn new(query: &'a str) -> Self {
         Self {
             query,
-            page: Some(NonZeroU32::new(1).unwrap()),
-            per_page: Some(NonZeroU32::new(10).unwrap()),
+            page: None,
+            per_page: None,
             content_filter: None,
             color: None,
             orientation: None,

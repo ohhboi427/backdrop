@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::borrow::Cow;
 use std::num::NonZeroU32;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct List {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<NonZeroU32>,
@@ -25,12 +25,9 @@ impl Endpoint for List {
     }
 }
 
-impl Default for List {
-    fn default() -> Self {
-        Self {
-            page: Some(NonZeroU32::new(1).unwrap()),
-            per_page: Some(NonZeroU32::new(10).unwrap()),
-        }
+impl List {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -47,6 +44,12 @@ impl Endpoint for Get<'_> {
 
     fn path(&self) -> Cow<'static, str> {
         format!("photos/{}", self.id).into()
+    }
+}
+
+impl<'a> Get<'a> {
+    pub fn new(id: &'a str) -> Self {
+        Self { id }
     }
 }
 
@@ -70,8 +73,7 @@ pub struct Random<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_filter: Option<ContentFilter>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub count: Option<NonZeroU32>,
+    pub count: NonZeroU32,
 }
 
 impl Endpoint for Random<'_> {
@@ -92,9 +94,15 @@ impl Default for Random<'_> {
             username: None,
             query: None,
             orientation: None,
-            content_filter: Some(ContentFilter::Low),
-            count: Some(NonZeroU32::new(1).unwrap()),
+            content_filter: None,
+            count: NonZeroU32::new(1).unwrap(),
         }
+    }
+}
+
+impl Random<'_> {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -111,5 +119,11 @@ impl Endpoint for TrackDownload<'_> {
 
     fn path(&self) -> Cow<'static, str> {
         format!("photos/{}/download", self.id).into()
+    }
+}
+
+impl<'a> TrackDownload<'a> {
+    pub fn new(id: &'a str) -> Self {
+        Self { id }
     }
 }

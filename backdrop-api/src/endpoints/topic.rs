@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::borrow::Cow;
 use std::num::NonZeroU32;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct List<'a> {
     #[serde(rename = "ids", skip_serializing_if = "Option::is_none")]
     pub ids_or_slugs: Option<&'a str>,
@@ -28,13 +28,9 @@ impl Endpoint for List<'_> {
     }
 }
 
-impl Default for List<'_> {
-    fn default() -> Self {
-        Self {
-            ids_or_slugs: None,
-            page: Some(NonZeroU32::new(1).unwrap()),
-            per_page: Some(NonZeroU32::new(10).unwrap()),
-        }
+impl List<'_> {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -50,7 +46,13 @@ impl Endpoint for Get<'_> {
     const METHOD: Method = Method::GET;
 
     fn path(&self) -> Cow<'static, str> {
-        format!("/topics/{}", self.id_or_slug).into()
+        format!("topics/{}", self.id_or_slug).into()
+    }
+}
+
+impl<'a> Get<'a> {
+    pub fn new(id_or_slug: &'a str) -> Self {
+        Self { id_or_slug }
     }
 }
 
@@ -83,8 +85,8 @@ impl<'a> PhotosOf<'a> {
     pub fn new(id_or_slug: &'a str) -> Self {
         Self {
             id_or_slug,
-            page: Some(NonZeroU32::new(1).unwrap()),
-            per_page: Some(NonZeroU32::new(10).unwrap()),
+            page: None,
+            per_page: None,
             orientation: None,
         }
     }
