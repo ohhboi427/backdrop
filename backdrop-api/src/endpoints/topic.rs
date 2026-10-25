@@ -29,6 +29,7 @@ impl Endpoint for List<'_> {
 
 #[derive(Debug, Serialize)]
 pub struct Get<'a> {
+    #[serde(skip_serializing)]
     pub id_or_slug: &'a str,
 }
 
@@ -44,6 +45,7 @@ impl Endpoint for Get<'_> {
 
 #[derive(Debug, Serialize)]
 pub struct PhotosOf<'a> {
+    #[serde(skip_serializing)]
     pub id_or_slug: &'a str,
 
     #[serde(skip_serializing_if = "Option::is_none")]

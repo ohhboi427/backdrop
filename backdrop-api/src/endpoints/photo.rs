@@ -35,6 +35,7 @@ impl Default for List {
 
 #[derive(Debug, Serialize)]
 pub struct Get<'a> {
+    #[serde(skip_serializing)]
     pub id: &'a str,
 }
 
@@ -98,6 +99,7 @@ impl Default for Random<'_> {
 
 #[derive(Debug, Serialize)]
 pub struct TrackDownload<'a> {
+    #[serde(skip_serializing)]
     pub id: &'a str,
 }
 
