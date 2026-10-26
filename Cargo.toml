@@ -1,4 +1,4 @@
 [workspace]
 resolver = "3"
-members = ["backdrop-api", "backdrop-cli"]
+members = ["unsplash-rs", "backdrop-cli"]
 exclude = ["backdrop-auth-proxy"]

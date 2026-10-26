@@ -1,5 +1,5 @@
 [package]
-name = "backdrop-api"
+name = "unsplash-rs"
 version = "0.1.0"
 edition = "2024"
 

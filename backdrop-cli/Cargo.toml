@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-backdrop-api = { path = "../backdrop-api" }
+unsplash-rs = { path = "../unsplash-rs" }
 anyhow = "1.0"
 form_urlencoded = "1.2"
 keyring = { version = "4.2", features = ["apple-native-keyring-store", "windows-native-keyring-store", "dbus-secret-service-keyring-store"] }

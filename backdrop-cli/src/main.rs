@@ -1,13 +1,16 @@
 mod error;
 
-use backdrop_api::auth::{self, Auth, TokenResponse};
-use backdrop_api::client::Client;
-use backdrop_api::endpoints;
 pub use error::{Error, Result};
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
+use unsplash_rs::auth::{Auth, OAuthConfig, TokenResponse};
+use unsplash_rs::client::Client;
+use unsplash_rs::endpoints;
 use url::Url;
+
+const BACKDROP_PROXY_URI: &str = "https://backdrop-auth-proxy.ohhboi427.workers.dev/exchange";
+const BACKDROP_CLIENT_ID: &str = "s6ac0WqSKlmOLHtY-hlMKzMhywE4vw3aXT9Q9gHzyg8";
 
 #[derive(Debug, Error)]
 pub enum LoginError {
@@ -55,11 +58,14 @@ async fn login() -> Result<TokenResponse> {
     let port = callback.local_addr()?.port();
     let redirect_uri = Url::parse(&format!("http://127.0.0.1:{port}/callback")).unwrap();
 
-    let auth_url = auth::build_auth_url(&redirect_uri, "public read_user write_user", None);
+    let proxy_uri = Url::parse(BACKDROP_PROXY_URI).unwrap();
+    let oauth_config = OAuthConfig::with_proxy(BACKDROP_CLIENT_ID, redirect_uri, proxy_uri);
+
+    let auth_url = oauth_config.build_auth_url("public read_user write_user", None);
     open::that(auth_url.as_str()).map_err(|_| LoginError::BrowserLaunch)?;
 
     let code = capture_auth_code(&callback).await?;
-    let token = auth::exchange_token(&code, &redirect_uri).await?;
+    let token = oauth_config.exchange_token(&code).await?;
 
     Ok(token)
 }
@@ -80,7 +86,9 @@ async fn main() -> anyhow::Result<()> {
         Err(e) => return Err(e.into()),
     };
 
-    let client = Client::new(token)?;
+    let client = Client::builder(token)
+        .app_info(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+        .build()?;
 
     let req = endpoints::topic::List::default();
     let topics = client.execute(req).await?;
